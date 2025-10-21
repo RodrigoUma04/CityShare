@@ -7,7 +7,7 @@
 * When you are at a specific location, you can save that location with a photo and a category
 * Users can rate and comment on these locations
 * You can filter by location categories
-* After filtering, a list and a map (use OSM!!) are displaye
+* After filtering, a list and a map (use OSM!!) are displayed
 * Without the presence of these functional minimum requirements, the project will not be graded!
 
 ## Nice to haves:
