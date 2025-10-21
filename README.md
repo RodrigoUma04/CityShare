@@ -1,4 +1,6 @@
 # CityShare
+## Group
+25
 ## Your app has the following minimum requirements:
 
 - [x] Login with registration and Firebase authentication
@@ -8,7 +10,6 @@
 - [ ] Users can rate and comment on these locations
 - [ ] You can filter by location categories
 - [ ] After filtering, a list and a map (use OSM!!) are displayed
-- [ ] Without the presence of these functional minimum requirements, the project will not be graded!
 
 ## Nice to haves:
 - [ ] When clicking on a location (in the list or on the map), the distance from your current location is calculated
