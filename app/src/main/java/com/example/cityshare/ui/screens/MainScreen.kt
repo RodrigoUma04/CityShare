@@ -23,7 +23,7 @@ fun MainScreen(){
 
     val bottomNavItems = listOf(
         BottomNavItem("Home","home", Icons.Default.Home),
-        BottomNavItem("Add","addLocation", Icons.Default.AddCircle),
+        BottomNavItem("AddLocation","addLocation", Icons.Default.AddCircle),
         BottomNavItem("Message","message", Icons.Default.MailOutline),
         BottomNavItem("Settings","settings", Icons.Default.Settings),
     )
@@ -35,10 +35,10 @@ fun MainScreen(){
             startDestination = "home",
             modifier = Modifier.padding(innerPadding)
         ){
-            composable("home") {Homescreen(Modifier.fillMaxSize())}
-            composable("Add") {AddLocationScreen(Modifier.fillMaxSize())}
-            composable("Message") {MessageScreen(Modifier.fillMaxSize())}
-            composable("Settings") {SettingScreen(Modifier.fillMaxSize())}
+            composable("home") {Homescreen()}
+            composable("addLocation") {AddLocationScreen(Modifier.fillMaxSize())}
+            composable("message") {MessageScreen(Modifier.fillMaxSize())}
+            composable("settings") {SettingScreen(Modifier.fillMaxSize())}
         }
     }
 }

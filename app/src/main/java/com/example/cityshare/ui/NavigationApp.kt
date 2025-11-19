@@ -13,7 +13,7 @@ import com.example.cityshare.data.loginWithEmailPassword
 import com.example.cityshare.rememberSnackbarHostState
 import com.example.cityshare.GlobalSnackbarHost
 import com.example.cityshare.data.registerWithEmailPassword
-import com.example.cityshare.ui.screens.Homescreen
+import com.example.cityshare.ui.screens.MainScreen
 import com.example.cityshare.ui.screens.LoginScreen
 import com.example.cityshare.ui.screens.RegisterScreen
 import kotlinx.coroutines.launch
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 enum class NavigationScreen(){
     Login,
     Register,
-    Home
+    Main
 }
 
 @Composable
@@ -44,7 +44,7 @@ fun NavigationApp(
                         loginWithEmailPassword(
                             email = email,
                             password = password,
-                            onSuccess = { navController.navigate(NavigationScreen.Home.name) {
+                            onSuccess = { navController.navigate(NavigationScreen.Main.name) {
                                 popUpTo(NavigationScreen.Login.name) { inclusive = true }
                             }
                             },
@@ -66,7 +66,7 @@ fun NavigationApp(
                         registerWithEmailPassword(
                             email = email,
                             password = password,
-                            onSuccess = { navController.navigate(NavigationScreen.Home.name) {
+                            onSuccess = { navController.navigate(NavigationScreen.Main.name) {
                                 popUpTo(NavigationScreen.Login.name) { inclusive = true }
                             }
                             },
@@ -81,9 +81,8 @@ fun NavigationApp(
                 )
             }
 
-            composable(route = NavigationScreen.Home.name) {
-                Homescreen(
-                    modifier = Modifier.fillMaxSize()
+            composable(route = NavigationScreen.Main.name) {
+                MainScreen(
                 )
             }
         }
