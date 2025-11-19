@@ -6,12 +6,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 @Composable
-fun Homescreen(
+fun MessageScreen(
     modifier: Modifier
 ) {
     Column(
         modifier = modifier,
     ) {
-        Text("Welcome to homeScreen!")
+        Text("Welcome to message!")
     }
 }

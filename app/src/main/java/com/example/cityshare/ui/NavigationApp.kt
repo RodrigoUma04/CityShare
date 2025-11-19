@@ -13,7 +13,7 @@ import com.example.cityshare.data.loginWithEmailPassword
 import com.example.cityshare.rememberSnackbarHostState
 import com.example.cityshare.GlobalSnackbarHost
 import com.example.cityshare.data.registerWithEmailPassword
-import com.example.cityshare.ui.screens.HomeScreen
+import com.example.cityshare.ui.screens.Homescreen
 import com.example.cityshare.ui.screens.LoginScreen
 import com.example.cityshare.ui.screens.RegisterScreen
 import kotlinx.coroutines.launch
@@ -82,7 +82,7 @@ fun NavigationApp(
             }
 
             composable(route = NavigationScreen.Home.name) {
-                HomeScreen(
+                Homescreen(
                     modifier = Modifier.fillMaxSize()
                 )
             }
