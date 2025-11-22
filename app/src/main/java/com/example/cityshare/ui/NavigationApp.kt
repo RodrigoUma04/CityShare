@@ -16,6 +16,7 @@ import com.example.cityshare.data.registerWithEmailPassword
 import com.example.cityshare.ui.screens.MainScreen
 import com.example.cityshare.ui.screens.LoginScreen
 import com.example.cityshare.ui.screens.RegisterScreen
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 enum class NavigationScreen(){
@@ -30,12 +31,19 @@ fun NavigationApp(
 ){
     val (snackbarHostState, scope) = rememberSnackbarHostState()
 
+    val auth = FirebaseAuth.getInstance()
+    val startDestination = if (auth.currentUser != null) {
+        NavigationScreen.Main.name
+    } else {
+        NavigationScreen.Login.name
+    }
+
     Scaffold(snackbarHost = { GlobalSnackbarHost(snackbarHostState) } ) {
             innerPadding ->
 
         NavHost(
             navController = navController,
-            startDestination = NavigationScreen.Login.name,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(route = NavigationScreen.Login.name) {
