@@ -77,6 +77,7 @@ fun NavigationApp(
                             }
                         )
                     },
+                    onBackClicked = { navController.popBackStack() } ,
                     modifier = Modifier.fillMaxSize()
                 )
             }
