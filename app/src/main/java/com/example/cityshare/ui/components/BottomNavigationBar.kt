@@ -34,7 +34,7 @@ fun BottomNavigationBar(navController: NavController,items: List<BottomNavItem>)
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 12.dp)
             .clip(RoundedCornerShape(32.dp))
-            .background(Color(0xFFA8BAC5))
+            .background(MaterialTheme.colorScheme.tertiary)
             .height(64.dp)
     ){
         Row(
@@ -62,7 +62,7 @@ fun BottomNavigationBar(navController: NavController,items: List<BottomNavItem>)
                         imageVector = item.icon,
                         contentDescription = item.name,
                         modifier = Modifier.size(28.dp),
-                        tint = if (currentRoute == item.route) Color(0xFF1B7CEB) else Color(0xFF414141)
+                        tint = if (currentRoute == item.route) MaterialTheme.colorScheme.secondary else Color(0xFF414141)
                     )
                 }
             }

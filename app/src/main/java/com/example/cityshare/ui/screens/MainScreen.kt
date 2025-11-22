@@ -35,7 +35,7 @@ fun MainScreen(){
             startDestination = "home",
             modifier = Modifier.padding(innerPadding)
         ){
-            composable("home") {Homescreen()}
+            composable("home") {Homescreen(Modifier.fillMaxSize())}
             composable("addLocation") {AddLocationScreen(Modifier.fillMaxSize())}
             composable("message") {MessageScreen(Modifier.fillMaxSize())}
             composable("settings") {SettingScreen(Modifier.fillMaxSize())}

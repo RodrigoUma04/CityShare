@@ -10,13 +10,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
@@ -30,7 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.cityshare.ui.components.AddCityItem
 import com.example.cityshare.ui.components.SuggestionItem
 import com.example.cityshare.ui.components.addCitySmart
@@ -40,109 +50,98 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Homescreen() {
-
-    var searchText by remember { mutableStateOf("") }
-    var suggestions by remember { mutableStateOf(listOf<String>()) }
+fun Homescreen(modifier: Modifier = Modifier) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
-    var isSearchFocused by remember { mutableStateOf(false) }
 
-
-    DisposableEffect(isSearchFocused, searchText) {
-        var registration: ListenerRegistration? = null
-
-        if (isSearchFocused && searchText.isNotBlank()) {
-            registration = db.collection("cities")
-                .orderBy("addedAt", Query.Direction.DESCENDING)
-                .limit(4)
-                .addSnapshotListener { snapshot, _ ->
-                    if (snapshot != null) {
-                        suggestions = snapshot.documents.mapNotNull { it.getString("name") }
-                    }
-                }
-        }else{
-                suggestions = emptyList()
-            }
-        onDispose {
-            registration?.remove()
-            suggestions = emptyList()
-        }
-    }
+    var expanded by remember { mutableStateOf(false) }
+    // change this logic to actually select the city you're in at the moment and the dropdown lets you select another city (maybe also allow look up)
+    var selectedCity by remember { mutableStateOf("") }
+    val cities = listOf("Antwerp", "Brussels", "Ghent", "Bruges", "Leuven")
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
+        modifier = modifier
+            .padding(horizontal = 30.dp)
     ) {
         Row(
-            modifier= Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
+            modifier= Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(
-                text = "Antwerp",
-                style = MaterialTheme.typography.headlineSmall
-            )
-            IconButton(onClick = {}) {Icon(Icons.Default.Place, contentDescription = "Map")
-            }
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        Column(
-            modifier = Modifier.fillMaxWidth()){
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = {searchText = it },
-                modifier = Modifier.fillMaxWidth()
-                    .onFocusChanged{ focusState ->
-                        isSearchFocused = focusState.isFocused
-
-                    },
-                shape = RoundedCornerShape(16.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                placeholder = {Text("Add cities...")},
-                trailingIcon = {
-                    if (searchText.isNotEmpty()){
-                        IconButton(onClick = {searchText = ""}) {
-                            Icon(Icons.Default.Clear, contentDescription = null)
-                        }
-                    }
-                }
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        if (searchText.isNotBlank() && isSearchFocused){
-            AddCityItem(searchText) { typed ->
-                addCitySmart(db, auth, typed)
-            }
-            Spacer(Modifier.height(4.dp))
-
-            Column(modifier = Modifier.fillMaxWidth()
-                .heightIn(max= 200.dp)
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                modifier = Modifier.width(250.dp)
             ) {
-                suggestions.forEach { city ->
-                    SuggestionItem(city) {
-                        addToUserCityList(db, auth, city)
+                OutlinedTextField(
+                    value = selectedCity,
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = { Text("Choose another city") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                        .fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    cities.forEach { city ->
+                        DropdownMenuItem(
+                            text = { Text(city) },
+                            onClick = {
+                                selectedCity = city
+                                expanded = false
+                            }
+                        )
                     }
                 }
             }
+            IconButton(onClick = {}) {Icon(Icons.Outlined.LocationOn, contentDescription = "Map")
+            }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(30.dp))
 
-        Box(modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center){
-            Text("Welcome to home")
-        }
+        var searchText by remember { mutableStateOf("") }
+
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = { searchText = it },
+            placeholder = { Text("Search by name", color = Color.LightGray) },
+            trailingIcon = {
+                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.LightGray)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = Color.LightGray.copy(alpha = 0.3f),
+                unfocusedContainerColor = Color.LightGray.copy(alpha = 0.3f),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            singleLine = true
+        )
+
+        Spacer(Modifier.height(30.dp))
+
+        Text(
+            text = "Categories",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(90.dp))
+
+        Text(
+            text = "Popular",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
