@@ -46,6 +46,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("org.osmdroid:osmdroid-android:6.1.18")
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("com.google.firebase:firebase-storage")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
