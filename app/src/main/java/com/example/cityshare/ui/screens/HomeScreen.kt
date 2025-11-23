@@ -52,7 +52,10 @@ import com.google.firebase.firestore.Query
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Homescreen(modifier: Modifier = Modifier) {
+fun Homescreen(
+    onMapClicked: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
 
@@ -102,7 +105,7 @@ fun Homescreen(modifier: Modifier = Modifier) {
                     }
                 }
             }
-            IconButton(onClick = {}) {Icon(Icons.Outlined.LocationOn, contentDescription = "Map")
+            IconButton(onClick = onMapClicked ) {Icon(Icons.Outlined.LocationOn, contentDescription = "Map")
             }
         }
 
