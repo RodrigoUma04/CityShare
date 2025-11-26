@@ -256,12 +256,14 @@ fun AddLocationScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        Spacer(Modifier.height(20.dp))
+
         Text(
             text = "Add New Location",
-            style = MaterialTheme.typography.headlineMedium
+            style = MaterialTheme.typography.headlineMedium,
         )
 
         // Name
@@ -320,7 +322,9 @@ fun AddLocationScreen(
                             isValidatingAddress = false
                         }
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface,)
                 ) {
                     Text("Validate Address")
                 }
@@ -339,7 +343,9 @@ fun AddLocationScreen(
                             isValidatingAddress = false
                         }
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface,)
                 ) {
                     Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
@@ -430,7 +436,7 @@ fun AddLocationScreen(
                             )
                             IconButton(
                                 onClick = { selectedImages = selectedImages - uri },
-                                modifier = Modifier.align(Alignment.TopEnd)
+                                modifier = Modifier.align(Alignment.TopEnd),
                             ) {
                                 Icon(Icons.Default.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
                             }
@@ -444,7 +450,9 @@ fun AddLocationScreen(
             ) {
                 OutlinedButton(
                     onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface,)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
@@ -457,7 +465,9 @@ fun AddLocationScreen(
                         tempImageUri = uri
                         cameraLauncher.launch(uri)
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface,)
                 ) {
                     Text("Camera")
                 }
@@ -477,7 +487,7 @@ fun AddLocationScreen(
         Button(
             onClick = { scope.launch { submitLocation() } },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = !isLoading,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
