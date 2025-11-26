@@ -72,6 +72,19 @@ fun AddLocationScreen(
     var categoryExpanded by remember { mutableStateOf(false) }
     var priceExpanded by remember { mutableStateOf(false) }
 
+    //Firebase Login
+    LaunchedEffect(Unit) {
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            auth.signInAnonymously()
+                .addOnSuccessListener { authResult ->
+                    Log.d("AddLocation", "Anonymous sign-in success: ${authResult.user?.uid}")
+                }
+                .addOnFailureListener { e ->
+                    Log.w("AddLocation", "Anonymous sign-in failed", e)
+            }
+        }
+    }
     // Location permission
     var hasLocationPermission by remember {
         mutableStateOf(
@@ -123,7 +136,7 @@ fun AddLocationScreen(
         return try {
             withContext(Dispatchers.IO) {
                 val encodedAddress = URLEncoder.encode(addr, "UTF-8")
-                val url = URL("https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1")
+                val url = URL("https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1&addressdetails=1")
 
                 val connection = url.openConnection() as HttpURLConnection
                 connection.setRequestProperty("User-Agent", "CityShareApp")
@@ -139,10 +152,16 @@ fun AddLocationScreen(
                 if (response =="[]") return@withContext Pair(false, null)
 
                 val json = JSONObject(response.substring(1, response.length - 1))
+                val addressObj = json.getJSONObject("address")
+                val city = when {
+                    addressObj.has("city") -> addressObj.getString("city")
+                    addressObj.has("town") -> addressObj.getString("town")
+                    addressObj.has("village") -> addressObj.getString("village")
+                    addressObj.has("municipality") -> addressObj.getString("municipality")
+                    else -> "Unknown"
+                }
                 val lat = json.getDouble("lat")
                 val lon = json.getDouble("lon")
-                val displayName = json.getString("display_name")
-                val city = extractCity(displayName)
                 Pair(true, Triple(lat, lon, city))
                 }
         } catch (e: Exception) {
@@ -169,8 +188,7 @@ fun AddLocationScreen(
 
             location?.let {
                 withContext(Dispatchers.IO) {
-                    val url = URL("https://nominatim.openstreetmap.org/reverse?lat=${it.latitude}&lon=${it.longitude}&format=json")
-
+                    val url = URL("https://nominatim.openstreetmap.org/reverse?lat=${it.latitude}&lon=${it.longitude}&format=json&addressdetails=1")
                     val connection = url.openConnection() as HttpURLConnection
                     connection.setRequestProperty("User-Agent", "CityShareApp")
                     connection.requestMethod = "GET"
@@ -184,7 +202,15 @@ fun AddLocationScreen(
 
                     val response = connection.inputStream.bufferedReader().use { it.readText()  }
                     val json = JSONObject(response)
-                    json.getString("display_name")
+                    val addressObj = json.getJSONObject("address")
+                    val city = when {
+                        addressObj.has("city") -> addressObj.getString("city")
+                        addressObj.has("town") -> addressObj.getString("town")
+                        addressObj.has("village") -> addressObj.getString("village")
+                        addressObj.has("municipality") -> addressObj.getString("municipality")
+                        else -> "Unknown"
+                    }
+                    city
                 }
             }
         } catch (e: Exception) {
@@ -242,13 +268,18 @@ fun AddLocationScreen(
             val auth = FirebaseAuth.getInstance()
             val userId = auth.currentUser?.uid ?: return
 
+            val cityDoc = db.collection("cities").document(city)
+            val citySnapshot = cityDoc.get().await()
+            if (!citySnapshot.exists()) {
+                cityDoc.set(mapOf("name" to city)).await()
+            }
+
             val locationData = hashMapOf(
                 "name" to name,
                 "description" to description,
                 "address" to address,
                 "latitude" to latitude,
                 "longitude" to longitude,
-                "city" to city,
                 "category" to category,
                 "priceRange" to priceRange,
                 "imageUrls" to imageUrls,
@@ -258,7 +289,11 @@ fun AddLocationScreen(
                 "totalRatings" to 0
             )
 
-            db.collection("locations").add(locationData).await()
+            db.collection("cities")
+                .document(city)
+                .collection("locations")
+                .add(locationData)
+                .await()
 
             successMessage = "Location added successfully!"
 
@@ -356,7 +391,8 @@ fun AddLocationScreen(
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurface,)
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    )
                 ) {
                     Text("Validate Address")
                 }
@@ -377,9 +413,14 @@ fun AddLocationScreen(
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurface,)
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    )
                 ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text("Use Current")
                 }
@@ -470,7 +511,11 @@ fun AddLocationScreen(
                                 onClick = { selectedImages = selectedImages - uri },
                                 modifier = Modifier.align(Alignment.TopEnd),
                             ) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove", tint = MaterialTheme.colorScheme.error)
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
                     }
@@ -484,7 +529,8 @@ fun AddLocationScreen(
                     onClick = { imagePickerLauncher.launch("image/*") },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurface,)
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    )
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
@@ -493,13 +539,15 @@ fun AddLocationScreen(
 
                 OutlinedButton(
                     onClick = {
-                        val uri = Uri.parse("content://com.example.cityshare.fileprovider/${UUID.randomUUID()}.jpg")
+                        val uri =
+                            Uri.parse("content://com.example.cityshare.fileprovider/${UUID.randomUUID()}.jpg")
                         tempImageUri = uri
                         cameraLauncher.launch(uri)
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurface,)
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    )
                 ) {
                     Text("Camera")
                 }
@@ -526,6 +574,30 @@ fun AddLocationScreen(
             } else {
                 Text("Add Location")
             }
+        }
+        if (successMessage != null) {
+            AlertDialog(
+                onDismissRequest = { successMessage = null },
+                title = { Text("Success") },
+                text = { Text(successMessage!!) },
+                confirmButton = {
+                    TextButton(onClick = { successMessage = null }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+        if (errorMessage != null) {
+            AlertDialog(
+                onDismissRequest = { errorMessage = null },
+                title = { Text("Error") },
+                text = { Text(errorMessage!!) },
+                confirmButton = {
+                    TextButton(onClick = { errorMessage = null }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
     }
 }
