@@ -126,12 +126,6 @@ fun AddLocationScreen(
         }
     }
 
-    // Functions
-    fun extractCity(displayName: String): String {
-        val parts = displayName.split(",").map { it.trim() }
-        return if (parts.size >= 2) parts[parts.size - 3] else parts.firstOrNull() ?: "Unknown"
-    }
-
     suspend fun validateAndGeocodeAddress(addr: String): Pair<Boolean, Triple<Double, Double, String>?> {
         return try {
             withContext(Dispatchers.IO) {

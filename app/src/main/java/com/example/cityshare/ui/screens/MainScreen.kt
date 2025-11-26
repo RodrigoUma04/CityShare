@@ -22,7 +22,7 @@ import com.example.cityshare.ui.components.BottomNavigationBar
 
 @Composable
 fun MainScreen(){
-    val navController = rememberNavController()
+    val rootNavController = rememberNavController()
 
     val bottomNavItems = listOf(
         BottomNavItem("Home","home", Icons.Default.Home),
@@ -30,54 +30,65 @@ fun MainScreen(){
         BottomNavItem("Message","message", Icons.Default.MailOutline),
         BottomNavItem("Settings","settings", Icons.Default.Settings),
     )
-    Scaffold(
-        bottomBar = {
-            BottomNavigationBar(
-                navController = navController,
-                items = bottomNavItems
-            )
-        },
-        contentWindowInsets = WindowInsets(0)
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)) {
-            NavHost(
-                navController = navController,
-                startDestination = "home",
+
+    NavHost(
+        navController = rootNavController,
+        startDestination = "main_with_nav"
+    ){
+        composable("main_with_nav"){
+            val innerNavController = rememberNavController()
+
+            Scaffold(
+            bottomBar = {
+                BottomNavigationBar(
+                    navController = innerNavController,
+                    items = bottomNavItems
+                )
+            },
+            contentWindowInsets = WindowInsets(0)
+        ) { innerPadding ->
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-            ){
-                composable("home") {
-                    Homescreen(
-                        onMapClicked = { navController.navigate("map") },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-                composable("addLocation") {
-                    AddLocationScreen(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(bottom = 90.dp)
-                    )
-                }
-                composable("message") {
-                    MessageScreen(
-                        Modifier.fillMaxSize()
-                    )
-                }
-                composable("settings") {
-                    SettingScreen(
-                        Modifier.fillMaxSize()
-                    )
-                }
-                composable("map") {
-                    MapScreen(
-                        onBackClicked = { navController.popBackStack() }
-                    )
+                    .padding(innerPadding)) {
+                NavHost(
+                    navController = innerNavController,
+                    startDestination = "home",
+                    modifier = Modifier.fillMaxSize()
+                ){
+                    composable("home") {
+                        Homescreen(
+                            onMapClicked = { rootNavController.navigate("map") },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    composable("addLocation") {
+                        AddLocationScreen(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(bottom = 90.dp)
+                        )
+                    }
+                    composable("message") {
+                        MessageScreen(
+                            Modifier.fillMaxSize()
+                        )
+                    }
+                    composable("settings") {
+                        SettingScreen(
+                            Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
+        }
+    }
+        composable("map") {
+            MapScreen(
+                onBackClicked = {
+                    rootNavController.popBackStack()
+                }
+            )
         }
     }
 }
