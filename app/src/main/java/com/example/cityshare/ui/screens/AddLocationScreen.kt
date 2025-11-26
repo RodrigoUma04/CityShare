@@ -29,9 +29,12 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.*
@@ -118,20 +121,30 @@ fun AddLocationScreen(
 
     suspend fun validateAndGeocodeAddress(addr: String): Pair<Boolean, Triple<Double, Double, String>?> {
         return try {
-            val encodedAddress = URLEncoder.encode(addr, "UTF-8")
-            val url = "https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1"
-            val response = URL(url).readText()
-            val json = JSONObject(response.substring(1, response.length - 1))
+            withContext(Dispatchers.IO) {
+                val encodedAddress = URLEncoder.encode(addr, "UTF-8")
+                val url = URL("https://nominatim.openstreetmap.org/search?q=$encodedAddress&format=json&limit=1")
 
-            if (response == "[]") {
-                Pair(false, null)
-            } else {
+                val connection = url.openConnection() as HttpURLConnection
+                connection.setRequestProperty("User-Agent", "CityShareApp")
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                    Log.e("AddLocation", "HTTP error: ${connection.responseCode}")
+                    return@withContext Pair(false, null)
+                }
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                if (response =="[]") return@withContext Pair(false, null)
+
+                val json = JSONObject(response.substring(1, response.length - 1))
                 val lat = json.getDouble("lat")
                 val lon = json.getDouble("lon")
                 val displayName = json.getString("display_name")
                 val city = extractCity(displayName)
                 Pair(true, Triple(lat, lon, city))
-            }
+                }
         } catch (e: Exception) {
             Log.e("AddLocation", "Geocoding error", e)
             Pair(false, null)
@@ -155,10 +168,24 @@ fun AddLocationScreen(
                 ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
             location?.let {
-                val url = "https://nominatim.openstreetmap.org/reverse?lat=${it.latitude}&lon=${it.longitude}&format=json"
-                val response = URL(url).readText()
-                val json = JSONObject(response)
-                json.getString("display_name")
+                withContext(Dispatchers.IO) {
+                    val url = URL("https://nominatim.openstreetmap.org/reverse?lat=${it.latitude}&lon=${it.longitude}&format=json")
+
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.setRequestProperty("User-Agent", "CityShareApp")
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+
+                    if (connection.responseCode != HttpURLConnection.HTTP_OK) {
+                        Log.e("AddLocation", "HTTP error: ${connection.responseCode}")
+                        return@withContext null
+                    }
+
+                    val response = connection.inputStream.bufferedReader().use { it.readText()  }
+                    val json = JSONObject(response)
+                    json.getString("display_name")
+                }
             }
         } catch (e: Exception) {
             Log.e("AddLocation", "Reverse geocoding error", e)
@@ -319,6 +346,11 @@ fun AddLocationScreen(
                             isValidatingAddress = true
                             val (valid, _) = validateAndGeocodeAddress(address)
                             addressValid = valid
+                            if (!valid) {
+                                errorMessage = "Invalid address. Please enter a valid address."
+                            } else {
+                                errorMessage = null
+                            }
                             isValidatingAddress = false
                         }
                     },
