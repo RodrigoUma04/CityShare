@@ -1,5 +1,6 @@
 package com.example.cityshare.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -7,22 +8,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,9 +27,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cityshare.ui.components.CitySelectionPopup
+import com.example.cityshare.ui.functions.addCitySmart
+import com.example.cityshare.ui.functions.getLocationsForCity
+import com.example.cityshare.ui.functions.getUserCities
+import com.example.cityshare.ui.functions.getCurrentLocationAddress
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -44,56 +47,67 @@ fun Homescreen(
 ) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
+    val context = LocalContext.current
 
-    var expanded by remember { mutableStateOf(false) }
-    // change this logic to actually select the city you're in at the moment and the dropdown lets you select another city (maybe also allow look up)
+    var currentCity by remember { mutableStateOf("") }
+    var userCities by remember { mutableStateOf(listOf<String>()) }
     var selectedCity by remember { mutableStateOf("") }
-    val cities = listOf("Antwerp", "Brussels", "Ghent", "Bruges", "Leuven")
+    var locationsInCity by remember { mutableStateOf(listOf<Map<String, Any>>()) }
+    var showCityPopup by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val city = getCurrentLocationAddress(context)
+        city?.let {
+            currentCity = it
+            if (selectedCity.isEmpty()) selectedCity = it
+        }
+    }
+    LaunchedEffect(Unit) {
+        getUserCities(db,auth){
+            cities -> userCities = cities
+            if (cities.isNotEmpty()){
+                selectedCity = cities.first()
+            }
+        }
+    }
+    LaunchedEffect(selectedCity) {
+        getLocationsForCity(db,selectedCity){
+            locations-> locationsInCity = locations
+        }
+    }
 
     Column(
         modifier = modifier
-            .padding(horizontal = 30.dp)
+            .padding(horizontal = 30.dp, vertical = 20.dp)
     ) {
         Row(
             modifier= Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-                modifier = Modifier.width(250.dp)
-            ) {
-                OutlinedTextField(
-                    value = selectedCity,
-                    onValueChange = {},
-                    readOnly = true,
-                    placeholder = { Text("Choose another city") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier
-                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
-                        .fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
+            Column(
+                Modifier
+                    .padding(vertical = 4.dp)
+                    .clickable { showCityPopup = true }
+            ){
+                Text(
+                    text = selectedCity.ifEmpty { currentCity },
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
                 )
 
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    cities.forEach { city ->
-                        DropdownMenuItem(
-                            text = { Text(city) },
-                            onClick = {
-                                selectedCity = city
-                                expanded = false
-                            }
-                        )
-                    }
-                }
+                Text(
+                    text = "Choose another",
+                    fontSize = 10.sp,
+                    color = Color.LightGray
+                )
             }
+
             IconButton(onClick = onMapClicked ) {Icon(Icons.Outlined.LocationOn, contentDescription = "Map")
             }
         }
+
+
 
         Spacer(Modifier.height(30.dp))
 
@@ -131,6 +145,22 @@ fun Homescreen(
             text = "Popular",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
+        )
+        CitySelectionPopup(
+            currentCity = currentCity,
+            userCities = userCities,
+            showDialog = showCityPopup,
+            onCitySelected = {city ->
+                selectedCity = city
+                showCityPopup = false
+            },
+            onAddCity = { city ->
+                addCitySmart(db,auth,city)
+                userCities = userCities + city
+                selectedCity = city
+                showCityPopup = false
+            },
+            onDismiss = { showCityPopup = false }
         )
     }
 }
