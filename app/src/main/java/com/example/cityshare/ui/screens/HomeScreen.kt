@@ -102,9 +102,6 @@ fun Homescreen(
                     color = Color.LightGray
                 )
             }
-
-            IconButton(onClick = onMapClicked ) {Icon(Icons.Outlined.LocationOn, contentDescription = "Map")
-            }
         }
 
 

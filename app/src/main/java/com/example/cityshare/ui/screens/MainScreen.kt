@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Scaffold
@@ -22,73 +23,69 @@ import com.example.cityshare.ui.components.BottomNavigationBar
 
 @Composable
 fun MainScreen(){
-    val rootNavController = rememberNavController()
+    val navController = rememberNavController()
 
     val bottomNavItems = listOf(
         BottomNavItem("Home","home", Icons.Default.Home),
+        BottomNavItem("Map","map", Icons.Default.LocationOn),
         BottomNavItem("AddLocation","addLocation", Icons.Default.AddCircle),
         BottomNavItem("Message","message", Icons.Default.MailOutline),
         BottomNavItem("Settings","settings", Icons.Default.Settings),
-    )
+        )
 
-    NavHost(
-        navController = rootNavController,
-        startDestination = "main_with_nav"
-    ){
-        composable("main_with_nav"){
-            val innerNavController = rememberNavController()
+    Scaffold(
+        bottomBar = {
+            BottomNavigationBar(
+                navController = navController,
+                items = bottomNavItems
+            )
+        },
+        contentWindowInsets = WindowInsets(0)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                modifier = Modifier.fillMaxSize()
+            ) {
+                composable("home") {
+                    Homescreen(
+                        onMapClicked = { navController.navigate("map") },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                composable("map") {
+                    MapScreen(
+                        onBackClicked = {
+                            navController.popBackStack()
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                    )
+                }
+                composable("addLocation") {
+                    AddLocationScreen(
+                        Modifier
+                            .fillMaxSize()
+                    )
+                }
+                composable("message") {
+                    MessageScreen(
+                        Modifier.fillMaxSize()
+                    )
+                }
+                composable("settings") {
+                    SettingScreen(
+                        Modifier.fillMaxSize()
+                    )
 
-            Scaffold(
-            bottomBar = {
-                BottomNavigationBar(
-                    navController = innerNavController,
-                    items = bottomNavItems
-                )
-            },
-            contentWindowInsets = WindowInsets(0)
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)) {
-                NavHost(
-                    navController = innerNavController,
-                    startDestination = "home",
-                    modifier = Modifier.fillMaxSize()
-                ){
-                    composable("home") {
-                        Homescreen(
-                            onMapClicked = { rootNavController.navigate("map") },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    composable("addLocation") {
-                        AddLocationScreen(
-                            Modifier
-                                .fillMaxSize()
-                                .padding(bottom = 90.dp)
-                        )
-                    }
-                    composable("message") {
-                        MessageScreen(
-                            Modifier.fillMaxSize()
-                        )
-                    }
-                    composable("settings") {
-                        SettingScreen(
-                            Modifier.fillMaxSize()
-                        )
-                    }
                 }
             }
         }
     }
-        composable("map") {
-            MapScreen(
-                onBackClicked = {
-                    rootNavController.popBackStack()
-                }
-            )
-        }
-    }
+
 }
