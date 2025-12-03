@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -27,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -41,6 +45,7 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import org.osmdroid.views.overlay.Marker
 import com.example.cityshare.R
+import com.example.cityshare.ui.components.LocationCard
 
 @Composable
 fun MapScreen(
@@ -77,6 +82,8 @@ fun MapScreen(
 
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var locationOverlay by remember { mutableStateOf<MyLocationNewOverlay?>(null) }
+
+    var selectedLocation by remember { mutableStateOf<Map<String, Any>?>(null) }
 
     DisposableEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
@@ -157,7 +164,10 @@ fun MapScreen(
                                 title = name
                                 icon = markerIcon
                                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                setOnMarkerClickListener { _, _ -> true }
+                                setOnMarkerClickListener { _, _ ->
+                                    selectedLocation = loc
+                                    true
+                                }
                             }
 
                             this.overlays.add(marker)
@@ -203,6 +213,36 @@ fun MapScreen(
                     imageVector = Icons.Default.LocationOn,
                     contentDescription = "Center on location"
                 )
+            }
+        }
+
+        selectedLocation?.let { loc ->
+            // Full-screen clickable overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            selectedLocation = null
+                        }
+                    }
+            ) {
+                // Location card
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures { }
+                        }
+                ) {
+                    LocationCard(
+                        location = loc,
+                        onClick = {
+                            // TODO: navigate to full screen details
+                        }
+                    )
+                }
             }
         }
     }
