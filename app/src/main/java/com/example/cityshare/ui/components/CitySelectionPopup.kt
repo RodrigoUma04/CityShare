@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun CitySelectionPopup(
     currentCity: String,
-    userCities: List<String>,
+    cities: List<String>,
     onCitySelected: (String) -> Unit,
     onAddCity: (String) -> Unit,
     showDialog: Boolean,
@@ -39,7 +39,7 @@ fun CitySelectionPopup(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     //Existing user cities
-                    userCities.forEach { city ->
+                    cities.forEach { city ->
                         Text(
                             text = city,
                             modifier = Modifier

@@ -1,5 +1,6 @@
 package com.example.cityshare.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,9 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cityshare.ui.components.CitySelectionPopup
-import com.example.cityshare.ui.functions.addCitySmart
+import com.example.cityshare.ui.functions.addCityToCollection
 import com.example.cityshare.ui.functions.getLocationsForCity
-import com.example.cityshare.ui.functions.getUserCities
+import com.example.cityshare.ui.functions.getCities
 import com.example.cityshare.ui.functions.getCurrentLocationAddress
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -49,30 +50,90 @@ fun Homescreen(
     val auth = FirebaseAuth.getInstance()
     val context = LocalContext.current
 
-    var currentCity by remember { mutableStateOf("") }
-    var userCities by remember { mutableStateOf(listOf<String>()) }
-    var selectedCity by remember { mutableStateOf("") }
+    var currentCity by remember { mutableStateOf<String?>(null) }
+    var allCities by remember { mutableStateOf(listOf<String>()) }
+    var selectedCity by remember { mutableStateOf("Unknown") }
     var locationsInCity by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var showCityPopup by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        val city = getCurrentLocationAddress(context)
-        city?.let {
-            currentCity = it
-            if (selectedCity.isEmpty()) selectedCity = it
+    fun findMatchingCity(address: String?, availableCities: List<String>): String? {
+        if (address == null) {
+            Log.d("Homescreen", "Address is null, cannot match city")
+            return null
         }
+
+        Log.d("Homescreen", "Checking address: '$address'")
+        Log.d("Homescreen", "Against available cities: $availableCities")
+
+        // Check if any city name appears in the address
+        val matchingCity = availableCities.find { city ->
+            val contains = address.contains(city, ignoreCase = true)
+            Log.d("Homescreen", "Does '$address' contain '$city'? $contains")
+            contains
+        }
+
+        Log.d("Homescreen", "Matching city result: ${matchingCity ?: "No match found"}")
+        return matchingCity
     }
-    LaunchedEffect(Unit) {
-        getUserCities(db,auth){
-            cities -> userCities = cities
-            if (cities.isNotEmpty()){
-                selectedCity = cities.first()
+
+    fun updateSelectedCity(address: String?, availableCities: List<String>) {
+        Log.d("Homescreen", "updateSelectedCity called")
+        Log.d("Homescreen", "Address: $address")
+        Log.d("Homescreen", "Available cities: $availableCities")
+
+        val matchedCity = findMatchingCity(address, availableCities)
+
+        selectedCity = when {
+            matchedCity != null -> {
+                Log.d("Homescreen", "Selected matched city: $matchedCity")
+                matchedCity
+            }
+            availableCities.isNotEmpty() -> {
+                Log.d("Homescreen", "No match, selecting first city: ${availableCities.first()}")
+                availableCities.first()
+            }
+            else -> {
+                Log.d("Homescreen", "No cities available, selecting Unknown")
+                "Unknown"
             }
         }
+
+        Log.d("Homescreen", "Final selected city: $selectedCity")
     }
+
+    LaunchedEffect(Unit) {
+        Log.d("Homescreen", "Fetching current location...")
+        val city = getCurrentLocationAddress(context)
+        Log.d("Homescreen", "Location fetched: $city")
+        currentCity = city
+    }
+
+    LaunchedEffect(Unit) {
+        Log.d("Homescreen", "Fetching cities from Firestore...")
+        getCities(db) { cities ->
+            Log.d("Homescreen", "Cities fetched: $cities")
+            allCities = cities
+        }
+    }
+
+    LaunchedEffect(currentCity, allCities) {
+        Log.d("Homescreen", "LaunchedEffect triggered - currentCity: $currentCity, allCities: $allCities")
+        if (currentCity != null && allCities.isNotEmpty()) {
+            updateSelectedCity(currentCity, allCities)
+        } else if (allCities.isNotEmpty() && selectedCity == "Unknown") {
+            // Fallback: if we have cities but no location yet, select first city
+            Log.d("Homescreen", "No location yet, but cities available. Selecting first.")
+            selectedCity = allCities.first()
+        }
+    }
+
     LaunchedEffect(selectedCity) {
-        getLocationsForCity(db,selectedCity){
-            locations-> locationsInCity = locations
+        Log.d("Homescreen", "Selected city changed to: $selectedCity")
+        if (selectedCity != "Unknown" && selectedCity.isNotEmpty()) {
+            getLocationsForCity(db, selectedCity) { locations ->
+                Log.d("Homescreen", "Locations fetched for $selectedCity: ${locations.size} locations")
+                locationsInCity = locations
+            }
         }
     }
 
@@ -91,7 +152,7 @@ fun Homescreen(
                     .clickable { showCityPopup = true }
             ){
                 Text(
-                    text = selectedCity.ifEmpty { currentCity },
+                    text = selectedCity,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -144,17 +205,24 @@ fun Homescreen(
             fontWeight = FontWeight.Bold
         )
         CitySelectionPopup(
-            currentCity = currentCity,
-            userCities = userCities,
+            currentCity = currentCity ?: "Unknown",
+            cities = allCities,
             showDialog = showCityPopup,
             onCitySelected = {city ->
                 selectedCity = city
                 showCityPopup = false
             },
             onAddCity = { city ->
-                addCitySmart(db,auth,city)
-                userCities = userCities + city
-                selectedCity = city
+                addCityToCollection(
+                    firestore = db,
+                    city = city,
+                    onSuccess = {
+                        print("Main collection updated")
+                        selectedCity = city
+                        allCities = allCities + city
+                        },
+                    onError = { print("Error updating main collection: $it") }
+                )
                 showCityPopup = false
             },
             onDismiss = { showCityPopup = false }

@@ -3,19 +3,15 @@ package com.example.cityshare.ui.functions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
-fun getUserCities(
+fun getCities(
     firestore: FirebaseFirestore,
-    auth: FirebaseAuth,
     onResult: (List<String>) -> Unit
 ){
-    val uid = auth.currentUser?.uid ?: return
     firestore
-        .collection("users")
-        .document(uid)
         .collection("cities")
         .get()
         .addOnSuccessListener { snap ->
-            val cities = snap.documents.mapNotNull { it.getString("city") }
+            val cities = snap.documents.mapNotNull { it.getString("name") }
             onResult(cities)
         }
         .addOnFailureListener {
