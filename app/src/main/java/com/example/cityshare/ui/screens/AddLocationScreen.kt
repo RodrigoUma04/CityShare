@@ -177,12 +177,23 @@ fun AddLocationScreen(
             }
 
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-            val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
-            location?.let {
-                withContext(Dispatchers.IO) {
-                    val url = URL("https://nominatim.openstreetmap.org/reverse?lat=${it.latitude}&lon=${it.longitude}&format=json&addressdetails=1")
+            if (!isGpsEnabled && !isNetworkEnabled) {
+                return null;
+            }
+
+            val location = when{
+                isGpsEnabled -> locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                else -> locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            } ?: return null
+
+
+            withContext(Dispatchers.IO) {
+                    val url = URL(
+                        "https://nominatim.openstreetmap.org/reverse?lat=${location.latitude}&lon=${location.longitude}&format=json&addressdetails=1"
+                    )
                     val connection = url.openConnection() as HttpURLConnection
                     connection.setRequestProperty("User-Agent", "CityShareApp")
                     connection.requestMethod = "GET"
@@ -197,16 +208,27 @@ fun AddLocationScreen(
                     val response = connection.inputStream.bufferedReader().use { it.readText()  }
                     val json = JSONObject(response)
                     val addressObj = json.getJSONObject("address")
-                    val city = when {
-                        addressObj.has("city") -> addressObj.getString("city")
-                        addressObj.has("town") -> addressObj.getString("town")
-                        addressObj.has("village") -> addressObj.getString("village")
-                        addressObj.has("municipality") -> addressObj.getString("municipality")
-                        else -> "Unknown"
-                    }
-                    city
+
+                    val road = addressObj.optString("road","")
+                    val houseNumber = addressObj.optString("house_number","")
+                    val postcode = addressObj.optString("postcode","")
+                    val city = addressObj.optString("city",
+                        addressObj.optString("town",
+                        addressObj.optString("village",
+                         addressObj.optString("municipality","")
+                        )
+                        )
+                    )
+                    val rawCountry = addressObj.optString("country","")
+                    val country = rawCountry.split("/").first().trim()
+
+                    listOf(
+                        listOf(road, houseNumber).filter { it.isNotEmpty() }.joinToString(" "),
+                        listOf(postcode, city).filter { it.isNotEmpty() }.joinToString(" "),
+                        country
+                    ).filter { it.isNotEmpty() }
+                        .joinToString(", ")
                 }
-            }
         } catch (e: Exception) {
             Log.e("AddLocation", "Reverse geocoding error", e)
             null
