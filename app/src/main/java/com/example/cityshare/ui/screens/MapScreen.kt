@@ -1,7 +1,6 @@
 package com.example.cityshare.ui.screens
 
 import android.Manifest
-import android.R
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
@@ -32,12 +31,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.example.cityshare.ui.functions.getAllLocations
+import com.google.firebase.firestore.FirebaseFirestore
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import org.osmdroid.views.overlay.Marker
+import com.example.cityshare.R
 
 @Composable
 fun MapScreen(
@@ -140,6 +143,28 @@ fun MapScreen(
                     }
 
                     mapView = this
+
+                    val markerIcon = ContextCompat.getDrawable(ctx, R.drawable.pin)
+
+                    getAllLocations(FirebaseFirestore.getInstance()) { locations ->
+                        locations.forEach { loc ->
+                            val lat = loc["latitude"] as? Double ?: return@forEach
+                            val lng = loc["longitude"] as? Double ?: return@forEach
+                            val name = loc["name"] as? String ?: "Unknown"
+
+                            val marker = Marker(this).apply {
+                                position = GeoPoint(lat, lng)
+                                title = name
+                                icon = markerIcon
+                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                setOnMarkerClickListener { _, _ -> true }
+                            }
+
+                            this.overlays.add(marker)
+                        }
+
+                        this.invalidate()
+                    }
                 }
             },
             modifier = Modifier.fillMaxSize()
