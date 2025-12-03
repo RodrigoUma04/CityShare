@@ -55,7 +55,6 @@ fun AddLocationScreen(
     var description by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
-    var priceRange by remember { mutableStateOf("") }
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -68,11 +67,9 @@ fun AddLocationScreen(
         "Restaurant", "Museum", "Club/Nightlife", "Park/Nature",
         "Shopping", "Entertainment", "Cafe/Bar", "Historic Site", "Sports/Recreation"
     )
-    val priceRanges = listOf("€", "€€", "€€€", "€€€€")
 
     // Category dropdown
     var categoryExpanded by remember { mutableStateOf(false) }
-    var priceExpanded by remember { mutableStateOf(false) }
 
     //Firebase Login
     LaunchedEffect(Unit) {
@@ -284,7 +281,7 @@ fun AddLocationScreen(
 
     suspend fun submitLocation() {
         if (name.isBlank() || description.isBlank() || address.isBlank() ||
-            category.isBlank() || priceRange.isBlank()) {
+            category.isBlank()) {
             errorMessage = "Please fill in all required fields"
             return
         }
@@ -329,7 +326,6 @@ fun AddLocationScreen(
                 "latitude" to latitude,
                 "longitude" to longitude,
                 "category" to category,
-                "priceRange" to priceRange,
                 "imageUrls" to imageUrls,
                 "addedBy" to userId,
                 "createdAt" to com.google.firebase.Timestamp.now(),
@@ -350,7 +346,6 @@ fun AddLocationScreen(
             description = ""
             address = ""
             category = ""
-            priceRange = ""
             selectedImages = emptyList()
             addressValid = null
 
@@ -501,38 +496,6 @@ fun AddLocationScreen(
                         onClick = {
                             category = cat
                             categoryExpanded = false
-                        }
-                    )
-                }
-            }
-        }
-
-        // Price range dropdown
-        ExposedDropdownMenuBox(
-            expanded = priceExpanded,
-            onExpandedChange = { priceExpanded = it }
-        ) {
-            OutlinedTextField(
-                value = priceRange,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Price Range *") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = priceExpanded) },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-
-            ExposedDropdownMenu(
-                expanded = priceExpanded,
-                onDismissRequest = { priceExpanded = false }
-            ) {
-                priceRanges.forEach { price ->
-                    DropdownMenuItem(
-                        text = { Text(price) },
-                        onClick = {
-                            priceRange = price
-                            priceExpanded = false
                         }
                     )
                 }
