@@ -39,6 +39,7 @@ import com.example.cityshare.ui.functions.getCities
 import com.example.cityshare.ui.functions.getCurrentLocationAddress
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.example.cityshare.ui.components.CategorySelector
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +56,7 @@ fun Homescreen(
     var selectedCity by remember { mutableStateOf("Unknown") }
     var locationsInCity by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var showCityPopup by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
 
     fun findMatchingCity(address: String?, availableCities: List<String>): String? {
         if (address == null) {
@@ -197,7 +199,18 @@ fun Homescreen(
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(Modifier.height(90.dp))
+        Spacer(Modifier.height(16.dp))
+
+        CategorySelector(
+            selectedCategory = selectedCategory,
+            onCategorySelected = { category ->
+                selectedCategory = category
+                Log.d("Homescreen", "Category selected: $category")
+                // TODO: Filter locationsInCity based on selectedCategory
+            }
+        )
+
+        Spacer(Modifier.height(30.dp))
 
         Text(
             text = "Popular",
