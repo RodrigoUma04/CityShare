@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -101,6 +103,22 @@ fun AddLocationScreen(
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
     }
 
+    // Camera permission
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+    }
+
     // Image picker
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -110,6 +128,19 @@ fun AddLocationScreen(
         } else {
             errorMessage = "Maximum 10 images allowed"
         }
+    }
+
+    fun createFileUri(): Uri{
+        val timestamp = System.currentTimeMillis()
+        val imageFile = File(
+            context.cacheDir,
+            "JPEG_${timestamp}.jpg"
+        )
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            imageFile
+        )
     }
 
     // Camera launcher
@@ -124,6 +155,7 @@ fun AddLocationScreen(
                 errorMessage = "Maximum 10 images allowed"
             }
         }
+        tempImageUri = null
     }
 
     suspend fun validateAndGeocodeAddress(addr: String): Pair<Boolean, Triple<Double, Double, String>?> {
@@ -555,10 +587,18 @@ fun AddLocationScreen(
 
                 OutlinedButton(
                     onClick = {
-                        val uri =
-                            Uri.parse("content://com.example.cityshare.fileprovider/${UUID.randomUUID()}.jpg")
-                        tempImageUri = uri
-                        cameraLauncher.launch(uri)
+                        if (!hasCameraPermission) {
+                            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                        } else {
+                            try {
+                                val uri = createFileUri()
+                                tempImageUri = uri
+                                cameraLauncher.launch(uri)
+                            } catch (e: Exception) {
+                                Log.e("AddLocation", "Error creating file", e)
+                                errorMessage = "Failed to open camera: ${e.message}"
+                            }
+                        }
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
