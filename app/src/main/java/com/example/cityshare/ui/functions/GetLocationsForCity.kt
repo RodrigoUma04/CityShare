@@ -9,11 +9,26 @@ fun getLocationsForCity(
 ){
     firestore
         .collection("cities")
-        .whereEqualTo("city",city)
+        .whereEqualTo("name",city)
         .get()
-        .addOnSuccessListener { snap ->
-            val locations = snap.map { it.data }
-            onResult(locations)
+        .addOnSuccessListener { citySnap ->
+            if (citySnap.isEmpty) {
+                onResult(emptyList())
+                return@addOnSuccessListener
+            }
+
+            val cityDoc = citySnap.documents.first().reference
+
+            cityDoc.collection("locations")
+                .get()
+                .addOnSuccessListener { locSnap ->
+                    val locations = locSnap.map { it.data }
+                    onResult(locations)
+                }
+                .addOnFailureListener {
+                    println("Error getting locations: ${it.message}")
+                    onResult(emptyList())
+                }
         }
         .addOnFailureListener {
             print("Error getting user cities: "+it.message)

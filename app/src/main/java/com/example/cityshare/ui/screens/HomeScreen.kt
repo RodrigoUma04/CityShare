@@ -40,6 +40,7 @@ import com.example.cityshare.ui.functions.getCurrentLocationAddress
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.cityshare.ui.components.CategorySelector
+import com.example.cityshare.ui.components.LocationsList
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -213,10 +214,23 @@ fun Homescreen(
         Spacer(Modifier.height(30.dp))
 
         Text(
-            text = "Popular",
+            text = "Locations",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        LocationsList(
+            locations = locationsInCity,
+            selectedCategory = selectedCategory,
+            onLocationClick = { location ->
+                Log.d("Homescreen", "Location clicked: ${location["name"]}")
+                // TODO: Navigate to location details screen
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+
         CitySelectionPopup(
             currentCity = currentCity ?: "Unknown",
             cities = allCities,
