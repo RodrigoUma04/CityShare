@@ -4,22 +4,21 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -35,17 +34,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.example.cityshare.ui.functions.getAllLocations
+import com.example.cityshare.R
+import com.example.cityshare.ui.components.CitySelectionPopup
+import com.example.cityshare.ui.components.LocationCard
+import com.example.cityshare.ui.components.MapCategoryChips
+import com.example.cityshare.ui.components.MapCitySelector
+import com.example.cityshare.ui.functions.addCityToCollection
+import com.example.cityshare.ui.state.rememberCityState
 import com.google.firebase.firestore.FirebaseFirestore
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
-import org.osmdroid.views.overlay.Marker
-import com.example.cityshare.R
-import com.example.cityshare.ui.components.LocationCard
 
 @Composable
 fun MapScreen(
@@ -53,6 +56,9 @@ fun MapScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val db = FirebaseFirestore.getInstance()
+    val cityState = rememberCityState(context, db)
+
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -82,8 +88,9 @@ fun MapScreen(
 
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var locationOverlay by remember { mutableStateOf<MyLocationNewOverlay?>(null) }
-
     var selectedLocation by remember { mutableStateOf<Map<String, Any>?>(null) }
+
+    val filteredLocations = cityState.getFilteredLocations()
 
     DisposableEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
@@ -101,23 +108,18 @@ fun MapScreen(
                     controller.setZoom(15.0)
 
                     if (hasLocationPermission) {
-                        // Use osmdroid's built-in location provider (works without Google Services)
                         val gpsProvider = GpsMyLocationProvider(ctx)
                         val myLocationOverlay = MyLocationNewOverlay(gpsProvider, this)
                         myLocationOverlay.enableMyLocation()
                         overlays.add(myLocationOverlay)
                         locationOverlay = myLocationOverlay
 
-                        // Get current location using Android's LocationManager
                         try {
                             val locationManager = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-                            // Check if GPS is enabled
                             val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
                             val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
                             if (isGpsEnabled || isNetworkEnabled) {
-                                // Try GPS first, then network
                                 val location = if (isGpsEnabled) {
                                     locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                                 } else {
@@ -128,79 +130,86 @@ fun MapScreen(
                                     val userLocation = GeoPoint(it.latitude, it.longitude)
                                     controller.setCenter(userLocation)
                                     controller.setZoom(15.0)
-
-                                    // Enable follow mode after centering
                                     myLocationOverlay.enableFollowLocation()
                                 }
 
-                                // If no last known location, request location updates
                                 if (location == null) {
                                     gpsProvider.startLocationProvider { loc, _ ->
                                         loc?.let {
                                             val userLocation = GeoPoint(it.latitude, it.longitude)
                                             controller.animateTo(userLocation)
-                                            // Only center once, don't follow
                                         }
                                     }
                                 }
                             }
                         } catch (e: SecurityException) {
-                            // Permission not granted
+                            Log.e("MapScreen", "Location permission error", e)
                         }
                     }
 
                     mapView = this
-
-                    val markerIcon = ContextCompat.getDrawable(ctx, R.drawable.pin)
-
-                    getAllLocations(FirebaseFirestore.getInstance()) { locations ->
-                        locations.forEach { loc ->
-                            val lat = loc["latitude"] as? Double ?: return@forEach
-                            val lng = loc["longitude"] as? Double ?: return@forEach
-                            val name = loc["name"] as? String ?: "Unknown"
-
-                            val marker = Marker(this).apply {
-                                position = GeoPoint(lat, lng)
-                                title = name
-                                icon = markerIcon
-                                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                setOnMarkerClickListener { _, _ ->
-                                    selectedLocation = loc
-                                    true
-                                }
-                            }
-
-                            this.overlays.add(marker)
-                        }
-
-                        this.invalidate()
-                    }
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            update = { view ->
+                val markerIcon = ContextCompat.getDrawable(context, R.drawable.pin)
+
+                view.overlays.removeAll { it is Marker }
+
+                filteredLocations.forEach { loc ->
+                    val lat = loc["latitude"] as? Double ?: return@forEach
+                    val lng = loc["longitude"] as? Double ?: return@forEach
+                    val name = loc["name"] as? String ?: "Unknown"
+
+                    val marker = Marker(view).apply {
+                        position = GeoPoint(lat, lng)
+                        title = name
+                        icon = markerIcon
+                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        setOnMarkerClickListener { _, _ ->
+                            selectedLocation = loc
+                            true
+                        }
+                    }
+                    view.overlays.add(marker)
+                }
+                view.invalidate()
+            }
         )
 
-        // Back button
-        IconButton(
-            onClick = onBackClicked,
+        Column(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp)
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back"
+            MapCitySelector(
+                selectedCity = cityState.selectedCity,
+                onClick = { cityState.showCityPopup = true }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            MapCategoryChips(
+                selectedCategory = cityState.selectedCategory,
+                onCategorySelected = { category ->
+                    cityState.selectedCategory = category
+                    Log.d("MapScreen", "Category selected: $category")
+                }
             )
         }
 
-        // Center on location button
         if (hasLocationPermission) {
             FloatingActionButton(
                 onClick = {
                     locationOverlay?.let { overlay ->
                         overlay.myLocation?.let { location ->
-                            mapView?.controller?.setZoom(15.0)
                             mapView?.controller?.animateTo(location)
+
+                            cityState.currentCity?.let { currentCity ->
+                                cityState.updateSelectedCity(currentCity, cityState.allCities)
+                            }
                         }
                     }
                 },
@@ -217,7 +226,6 @@ fun MapScreen(
         }
 
         selectedLocation?.let { loc ->
-            // Full-screen clickable overlay
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -227,7 +235,6 @@ fun MapScreen(
                         }
                     }
             ) {
-                // Location card
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -244,6 +251,34 @@ fun MapScreen(
                     )
                 }
             }
+        }
+
+        if (cityState.showCityPopup) {
+            CitySelectionPopup(
+                currentCity = cityState.currentCity ?: "Unknown",
+                cities = cityState.allCities,
+                showDialog = cityState.showCityPopup,
+                onCitySelected = { city ->
+                    cityState.selectedCity = city
+                    cityState.showCityPopup = false
+                },
+                onAddCity = { city ->
+                    addCityToCollection(
+                        firestore = db,
+                        city = city,
+                        onSuccess = {
+                            Log.d("MapScreen", "City added successfully: $city")
+                            cityState.allCities = cityState.allCities + city
+                            cityState.selectedCity = city
+                        },
+                        onError = { error ->
+                            Log.e("MapScreen", "Error adding city: $error")
+                        }
+                    )
+                    cityState.showCityPopup = false
+                },
+                onDismiss = { cityState.showCityPopup = false }
+            )
         }
     }
 }
