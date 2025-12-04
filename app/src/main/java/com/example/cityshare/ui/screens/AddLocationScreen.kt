@@ -8,10 +8,12 @@ import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -21,12 +23,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import com.example.cityshare.ui.functions.normalizeCityName
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -176,13 +181,15 @@ fun AddLocationScreen(
 
                 val json = JSONObject(response.substring(1, response.length - 1))
                 val addressObj = json.getJSONObject("address")
-                val city = when {
+                val rawCity = when {
                     addressObj.has("city") -> addressObj.getString("city")
                     addressObj.has("town") -> addressObj.getString("town")
                     addressObj.has("village") -> addressObj.getString("village")
                     addressObj.has("municipality") -> addressObj.getString("municipality")
                     else -> "Unknown"
                 }
+                val city = normalizeCityName(rawCity)
+                Log.d("AddLocation", "Raw city: $rawCity, Normalized city: $city")
                 val lat = json.getDouble("lat")
                 val lon = json.getDouble("lon")
                 Pair(true, Triple(lat, lon, city))
@@ -303,7 +310,9 @@ fun AddLocationScreen(
                 return
             }
 
-            val (latitude, longitude, city) = geoData
+            val (latitude, longitude, normalizedCity) = geoData
+
+            Log.d("AddLocation", "Submitted location to city: $normalizedCity")
 
             // Upload images
             val imageUrls = uploadImages(selectedImages)
@@ -313,10 +322,11 @@ fun AddLocationScreen(
             val auth = FirebaseAuth.getInstance()
             val userId = auth.currentUser?.uid ?: return
 
-            val cityDoc = db.collection("cities").document(city)
+            val cityDoc = db.collection("cities").document(normalizedCity)
             val citySnapshot = cityDoc.get().await()
             if (!citySnapshot.exists()) {
-                cityDoc.set(mapOf("name" to city)).await()
+                cityDoc.set(mapOf("name" to normalizedCity)).await()
+                Log.d("AddLocation", "Created new city document: $normalizedCity")
             }
 
             val locationData = hashMapOf(
@@ -330,16 +340,17 @@ fun AddLocationScreen(
                 "addedBy" to userId,
                 "createdAt" to com.google.firebase.Timestamp.now(),
                 "averageRating" to 0.0,
-                "totalRatings" to 0
+                "totalRatings" to 0,
+                "city" to normalizedCity
             )
 
             db.collection("cities")
-                .document(city)
+                .document(normalizedCity)
                 .collection("locations")
                 .add(locationData)
                 .await()
 
-            successMessage = "Location added successfully!"
+            successMessage = "Location added successfully to $normalizedCity!"
 
             // Reset form
             name = ""
@@ -357,37 +368,47 @@ fun AddLocationScreen(
         }
     }
 
+    val isFormValid = name.isNotBlank()
+            && description.isNotBlank()
+            && address.isNotBlank()
+            && category.isNotBlank()
+            && selectedImages.isNotEmpty()
+            && addressValid == true
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(Modifier.height(20.dp))
-
         Text(
             text = "Add New Location",
             style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
         )
 
         // Name
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },
-            label = { Text("Name *") },
+            label = { Text("Location Name") },
+            placeholder = { Text("Enter name") },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
         )
 
         // Description
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
-            label = { Text("Description *") },
+            label = { Text("Description") },
+            placeholder = { Text("Enter description") },
             modifier = Modifier.fillMaxWidth(),
             minLines = 3,
-            maxLines = 5
+            maxLines = 5,
+            shape = RoundedCornerShape(12.dp)
         )
 
         // Address with validation
@@ -398,8 +419,11 @@ fun AddLocationScreen(
                     address = it
                     addressValid = null
                 },
-                label = { Text("Address *") },
+                label = { Text("Address") },
+                placeholder = { Text("Enter address") },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 trailingIcon = {
                     if (isValidatingAddress) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp))
@@ -407,7 +431,7 @@ fun AddLocationScreen(
                 },
                 supportingText = {
                     when (addressValid) {
-                        true -> Text("✓ Valid address", color = MaterialTheme.colorScheme.primary)
+                        true -> Text("✓ Valid address", color = Color.Green)
                         false -> Text("✗ Invalid address", color = MaterialTheme.colorScheme.error)
                         null -> null
                     }
@@ -432,7 +456,9 @@ fun AddLocationScreen(
                             isValidatingAddress = false
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     )
@@ -454,7 +480,9 @@ fun AddLocationScreen(
                             isValidatingAddress = false
                         }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     )
@@ -479,11 +507,13 @@ fun AddLocationScreen(
                 value = category,
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Category *") },
+                label = { Text("Category") },
+                placeholder = { Text("Select category") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = categoryExpanded) },
                 modifier = Modifier
                     .menuAnchor()
-                    .fillMaxWidth()
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             )
 
             ExposedDropdownMenu(
@@ -503,8 +533,12 @@ fun AddLocationScreen(
         }
 
         // Images
-        Column {
-            Text("Images * (1-10)", style = MaterialTheme.typography.titleMedium)
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Images * (1-10)", style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold)
 
             if (selectedImages.isNotEmpty()) {
                 LazyRow(
@@ -520,8 +554,8 @@ fun AddLocationScreen(
                             )
                             IconButton(
                                 onClick = { selectedImages = selectedImages - uri },
-                                modifier = Modifier.align(Alignment.TopEnd),
-                            ) {
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)) {
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = "Remove",
@@ -539,6 +573,7 @@ fun AddLocationScreen(
                 OutlinedButton(
                     onClick = { imagePickerLauncher.launch("image/*") },
                     modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     )
@@ -564,6 +599,7 @@ fun AddLocationScreen(
                         }
                     },
                     modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.onSurface,
                     )
@@ -585,13 +621,21 @@ fun AddLocationScreen(
         // Submit button
         Button(
             onClick = { scope.launch { submitLocation() } },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+                .height(56.dp),
+            enabled = !isLoading && isFormValid,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if(isFormValid)MaterialTheme.colorScheme.secondary
+                else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if(isFormValid) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.surfaceVariant,
+            )
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
             } else {
-                Text("Add Location")
+                Text("Add Location", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
         if (successMessage != null) {
