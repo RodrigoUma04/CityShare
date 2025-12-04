@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import com.example.cityshare.ui.functions.normalizeCityName
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -180,13 +181,15 @@ fun AddLocationScreen(
 
                 val json = JSONObject(response.substring(1, response.length - 1))
                 val addressObj = json.getJSONObject("address")
-                val city = when {
+                val rawCity = when {
                     addressObj.has("city") -> addressObj.getString("city")
                     addressObj.has("town") -> addressObj.getString("town")
                     addressObj.has("village") -> addressObj.getString("village")
                     addressObj.has("municipality") -> addressObj.getString("municipality")
                     else -> "Unknown"
                 }
+                val city = normalizeCityName(rawCity)
+                Log.d("AddLocation", "Raw city: $rawCity, Normalized city: $city")
                 val lat = json.getDouble("lat")
                 val lon = json.getDouble("lon")
                 Pair(true, Triple(lat, lon, city))
@@ -307,7 +310,9 @@ fun AddLocationScreen(
                 return
             }
 
-            val (latitude, longitude, city) = geoData
+            val (latitude, longitude, normalizedCity) = geoData
+
+            Log.d("AddLocation", "Submitted location to city: $normalizedCity")
 
             // Upload images
             val imageUrls = uploadImages(selectedImages)
@@ -317,10 +322,11 @@ fun AddLocationScreen(
             val auth = FirebaseAuth.getInstance()
             val userId = auth.currentUser?.uid ?: return
 
-            val cityDoc = db.collection("cities").document(city)
+            val cityDoc = db.collection("cities").document(normalizedCity)
             val citySnapshot = cityDoc.get().await()
             if (!citySnapshot.exists()) {
-                cityDoc.set(mapOf("name" to city)).await()
+                cityDoc.set(mapOf("name" to normalizedCity)).await()
+                Log.d("AddLocation", "Created new city document: $normalizedCity")
             }
 
             val locationData = hashMapOf(
@@ -334,16 +340,17 @@ fun AddLocationScreen(
                 "addedBy" to userId,
                 "createdAt" to com.google.firebase.Timestamp.now(),
                 "averageRating" to 0.0,
-                "totalRatings" to 0
+                "totalRatings" to 0,
+                "city" to normalizedCity
             )
 
             db.collection("cities")
-                .document(city)
+                .document(normalizedCity)
                 .collection("locations")
                 .add(locationData)
                 .await()
 
-            successMessage = "Location added successfully!"
+            successMessage = "Location added successfully to $normalizedCity!"
 
             // Reset form
             name = ""
