@@ -1,5 +1,7 @@
 package com.example.cityshare.ui.screens
 
+import android.content.Context
+import android.location.LocationManager
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +20,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +48,28 @@ fun Homescreen(
     val db = FirebaseFirestore.getInstance()
     val context = LocalContext.current
     val cityState = rememberCityState(context, db)
+
+    var userLocation by remember { mutableStateOf<android.location.Location?>(null) }
+
+    // Add this LaunchedEffect to get user location:
+    LaunchedEffect(Unit) {
+        try {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+            if (isGpsEnabled || isNetworkEnabled) {
+                val location = if (isGpsEnabled) {
+                    locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                } else {
+                    locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                }
+                userLocation = location
+            }
+        } catch (e: SecurityException) {
+            Log.e("Homescreen", "Location permission error", e)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -129,6 +154,7 @@ fun Homescreen(
 
         LocationsList(
             locations = cityState.locationsInCity,
+            userLocation = userLocation,
             selectedCategory = cityState.selectedCategory,
             onLocationClick = { location ->
                 Log.d("Homescreen", "Location clicked: ${location["name"]}")

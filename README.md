@@ -12,7 +12,7 @@
 - [x] After filtering, a list and a map (use OSM!!) are displayed
 
 ## Nice to haves:
-- [ ] When clicking on a location (in the list or on the map), the distance from your current location is calculated #TODO
+- [x] When clicking on a location (in the list or on the map), the distance from your current location is calculated
 - [ ] All location data is loaded from Firebase on startup and locally cached in a Room database. A refresh button is also available.
 - [ ] You can send messages to other users #EXTRA
 

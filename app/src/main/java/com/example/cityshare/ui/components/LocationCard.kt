@@ -1,5 +1,6 @@
 package com.example.cityshare.ui.components
 
+import android.location.Location
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -33,11 +34,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import kotlin.math.roundToInt
 
 @Composable
 fun LocationsList(
     locations: List<Map<String, Any>>,
     selectedCategory: String?,
+    userLocation: android.location.Location?,
     onLocationClick: (Map<String, Any>) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -76,6 +79,7 @@ fun LocationsList(
             items(filteredLocations) { location ->
                 LocationCard(
                     location = location,
+                    userLocation = userLocation,
                     onClick = { onLocationClick(location) }
                 )
             }
@@ -86,6 +90,7 @@ fun LocationsList(
 @Composable
 fun LocationCard(
     location: Map<String, Any>,
+    userLocation: android.location.Location?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -97,6 +102,26 @@ fun LocationCard(
     val totalRatings = (location["totalRatings"] as? Number)?.toInt() ?: 0
     val imageUrls = location["imageUrls"] as? List<*>
     val firstImage = imageUrls?.firstOrNull() as? String
+
+    val latitude = (location["latitude"] as? Number)?.toDouble()
+    val longitude = (location["longitude"] as? Number)?.toDouble()
+
+    val distanceText = if (userLocation != null && latitude != null && longitude != null) {
+        val locationPoint = Location("").apply {
+            this.latitude = latitude
+            this.longitude = longitude
+        }
+        val distanceInMeters = userLocation.distanceTo(locationPoint)
+        val distanceInKm = distanceInMeters / 1000
+
+        if (distanceInKm < 1) {
+            "${distanceInMeters.roundToInt()} m"
+        } else {
+            String.format("%.1f km", distanceInKm)
+        }
+    } else {
+        "?"
+    }
 
     Card(
         modifier = modifier
@@ -156,6 +181,13 @@ fun LocationCard(
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+
+                    Text(
+                        text = distanceText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.LightGray
                     )
 
                     if (category.isNotEmpty()) {
