@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MailOutline
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -22,7 +23,9 @@ import com.example.cityshare.ui.components.BottomNavItem
 import com.example.cityshare.ui.components.BottomNavigationBar
 
 @Composable
-fun MainScreen(){
+fun MainScreen(
+    onLogout: () -> Unit = {}
+){
     val navController = rememberNavController()
 
     val bottomNavItems = listOf(
@@ -30,7 +33,7 @@ fun MainScreen(){
         BottomNavItem("Map","map", Icons.Default.LocationOn),
         BottomNavItem("AddLocation","addLocation", Icons.Default.AddCircle),
         BottomNavItem("Message","message", Icons.Default.MailOutline),
-        BottomNavItem("Settings","settings", Icons.Default.Settings),
+        BottomNavItem("Profile","profile", Icons.Default.Person),
         )
 
     Scaffold(
@@ -78,11 +81,11 @@ fun MainScreen(){
                         Modifier.fillMaxSize()
                     )
                 }
-                composable("settings") {
-                    SettingScreen(
+                composable("profile") {
+                    ProfileScreen(
+                        onLogout = onLogout ,
                         Modifier.fillMaxSize()
                     )
-
                 }
             }
         }

@@ -8,8 +8,8 @@
 - [x] You can add an unlimited number of cities
 - [x] When you are at a specific location, you can save that location with a photo and a category
 - [ ] Users can rate and comment on these locations #TODO
-- [ ] You can filter by location categories #TODO
-- [ ] After filtering, a list and a map (use OSM!!) are displayed #TODO
+- [x] You can filter by location categories
+- [x] After filtering, a list and a map (use OSM!!) are displayed
 
 ## Nice to haves:
 - [ ] When clicking on a location (in the list or on the map), the distance from your current location is calculated #TODO
