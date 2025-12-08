@@ -2,6 +2,7 @@ package com.example.cityshare.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +18,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
 @Composable
-fun LocationReview(locationId: String){
+fun LocationReview(locationId: String) {
     var currentUser by remember { mutableStateOf<Map<String, Any>?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val firestore = FirebaseFirestore.getInstance()
@@ -54,7 +55,6 @@ fun LocationReview(locationId: String){
     val authUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     var reviews by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
-    var averageRating by remember { mutableStateOf(0.0) }
     var isLoadingReviews by remember { mutableStateOf(false) }
     var showWriteReviewDialog by remember { mutableStateOf(false) }
 
@@ -65,85 +65,93 @@ fun LocationReview(locationId: String){
             isLoading = false
         }
     }
+
     LaunchedEffect(locationId) {
-    isLoadingReviews = true
-    scope.launch {
-        try {
-            val snapshot = firestore.collection("reviews")
-                .whereEqualTo("locationId", locationId)
-                .get()
-                .await()
+        isLoadingReviews = true
+        scope.launch {
+            try {
+                val snapshot = firestore.collection("reviews")
+                    .whereEqualTo("locationId", locationId)
+                    .get()
+                    .await()
 
-            reviews = snapshot.documents.mapNotNull { it.data }
-            averageRating = reviews.mapNotNull { it["rating"] as? Double }
-                .average()
-        } catch (e: Exception) {e.printStackTrace()
-        } finally {
-            isLoadingReviews = false
-        }
-        }
-    }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-
-        Button(onClick = {showWriteReviewDialog = true},
-            Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.secondary,
-                contentColor = MaterialTheme.colorScheme.onSurface)
-        )
-        {
-            Text("Write a Review")
-        }
-        Text("Reviews", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (averageRating > 0) "Average Rating: %.1f".format(averageRating) else "No reviews yet",
-                fontSize = 14.sp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            repeat(5){
-                    index ->
-                Icon(
-                    imageVector = if (index < averageRating) Icons.Default.Star else Icons.Default.Star,
-                    contentDescription = null,
-                    tint = if (index < averageRating)  Color.Yellow else Color.LightGray,
-                    modifier = Modifier.size(16.dp)
-                )
+                reviews = snapshot.documents.mapNotNull { it.data }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                isLoadingReviews = false
             }
         }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Button(
+            onClick = { showWriteReviewDialog = true },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.secondary,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            )
+        ) {
+            Text("Write a Review")
+        }
+
         if (isLoadingReviews) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
         } else if (reviews.isEmpty()) {
-            Text("No reviews yet")
-        }  else {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = "No reviews yet. Be the first to review!",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 reviews.forEach { review ->
                     val rating = (review["rating"] as? Number)?.toInt() ?: 0
                     val text = review["text"] as? String ?: ""
                     val username = review["username"] as? String ?: "Anonymous"
 
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            repeat(5) { i ->
-                                Icon(
-                                    imageVector = if (i < rating) Icons.Default.Star else Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = if (i < rating) Color.Yellow else Color.LightGray,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = username,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                repeat(5) { i ->
+                                    Icon(
+                                        imageVector = if (i < rating) Icons.Default.Star else Icons.Default.StarBorder,
+                                        contentDescription = null,
+                                        tint = if (i < rating) Color(0xFFFFC107) else Color.LightGray,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
-                            Spacer(Modifier.width(6.dp))
-                            Text(username, fontWeight = FontWeight.Medium, fontSize = 12.sp)
                         }
-                        Text(text, fontSize = 14.sp)
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        Text(
+                            text = text,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                        )
                     }
                 }
             }
         }
     }
-    if (showWriteReviewDialog){
+
+    if (showWriteReviewDialog) {
         WriteReviewDialog(
             locationId = locationId,
             onDismiss = { showWriteReviewDialog = false },
@@ -151,7 +159,7 @@ fun LocationReview(locationId: String){
                 scope.launch {
                     try {
                         val userId = authUserId
-                        val username = currentUser!!["username"] as? String ?: "Anonymous"
+                        val username = currentUser?.get("username") as? String ?: "Anonymous"
                         firestore.collection("reviews")
                             .add(
                                 mapOf(
@@ -170,16 +178,16 @@ fun LocationReview(locationId: String){
                             .get()
                             .await()
                         reviews = snapshot.documents.mapNotNull { it.data }
-                        averageRating = reviews.mapNotNull { it["rating"] as? Number }
-                            .map { it.toDouble() }
-                            .average()
-                    } catch (e: Exception) { e.printStackTrace() }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
                 showWriteReviewDialog = false
             }
         )
     }
 }
+
 @Composable
 fun WriteReviewDialog(
     locationId: String,
@@ -195,19 +203,23 @@ fun WriteReviewDialog(
             modifier = Modifier.fillMaxWidth(0.9f),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Text("Write a Review", fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
                 // Star rating selector
-                Row {
+                Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
                     repeat(5) { index ->
                         IconButton(onClick = { rating = index + 1 }) {
                             Icon(
                                 imageVector = if (index < rating) Icons.Default.Star
                                 else Icons.Default.StarBorder,
-                                contentDescription = "Star",
-                                tint = if (index < rating) Color.Yellow
-                                else MaterialTheme.colorScheme.outlineVariant
+                                contentDescription = "Star ${index + 1}",
+                                tint = if (index < rating) Color(0xFFFFC107)
+                                else MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.size(32.dp)
                             )
                         }
                     }
@@ -219,6 +231,7 @@ fun WriteReviewDialog(
                     onValueChange = { reviewText = it },
                     label = { Text("Write your review") },
                     modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
                     maxLines = 5
                 )
 
@@ -226,7 +239,10 @@ fun WriteReviewDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = onDismiss,
+                        colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )) { Text("Cancel") }
                     Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = { onSubmit(rating, reviewText) },

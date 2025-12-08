@@ -1,14 +1,15 @@
 package com.example.cityshare.ui.components
 
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -27,6 +28,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.cityshare.ui.functions.getUserData
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -38,8 +42,13 @@ fun LocationDetailPopup(
 ) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var isLoadingUser by remember { mutableStateOf(false) }
+    var selectedTabIndex by remember { mutableStateOf(0) }
+    var averageRating by remember { mutableStateOf(0.0) }
+    var reviewCount by remember { mutableStateOf(0) }
+    val firestore = FirebaseFirestore.getInstance()
+    val scope = rememberCoroutineScope()
 
-    // Fetch user data when dialog opens
+    // Fetch user data and reviews when dialog opens
     LaunchedEffect(showDialog, location) {
         if (showDialog && location != null) {
             val addedBy = location["addedBy"] as? String
@@ -48,9 +57,34 @@ fun LocationDetailPopup(
                 userData = getUserData(addedBy)
                 isLoadingUser = false
             }
+
+            // Fetch average rating
+            val locationId = location["id"] as? String
+            if (locationId != null) {
+                scope.launch {
+                    try {
+                        val snapshot = firestore.collection("reviews")
+                            .whereEqualTo("locationId", locationId)
+                            .get()
+                            .await()
+
+                        val reviews = snapshot.documents.mapNotNull { it.data }
+                        reviewCount = reviews.size
+                        averageRating = reviews.mapNotNull { it["rating"] as? Number }
+                            .map { it.toDouble() }
+                            .average()
+                            .takeIf { !it.isNaN() } ?: 0.0
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
         } else {
-            // Reset user data when dialog closes
+            // Reset data when dialog closes
             userData = null
+            selectedTabIndex = 0
+            averageRating = 0.0
+            reviewCount = 0
         }
     }
 
@@ -147,184 +181,244 @@ fun LocationDetailPopup(
                         }
                     }
 
-                    // Scrollable content
-                    Column(
+                    // Title with category icon and rating
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Title with category icon
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Category icon
-                            val categoryIcon = getCategoryIcon(location["category"] as? String)
-                            Icon(
-                                imageVector = categoryIcon,
-                                contentDescription = "Category",
-                                tint = getCategoryColor(location["category"] as? String ?: ""),
-                                modifier = Modifier.size(28.dp)
-                            )
+                        // Category icon
+                        val categoryIcon = getCategoryIcon(location["category"] as? String)
+                        Icon(
+                            imageVector = categoryIcon,
+                            contentDescription = "Category",
+                            tint = getCategoryColor(location["category"] as? String ?: ""),
+                            modifier = Modifier.size(28.dp)
+                        )
 
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = location["name"] as? String ?: "Location",
                                 fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-
-                        // Added by user section
-                        Log.d(
-                            "LocationDetailPopup",
-                            "Rendering UI - isLoadingUser: $isLoadingUser, userData: ${userData != null}"
-                        )
-
-                        if (isLoadingUser) {
-                            Log.d("LocationDetailPopup", "Showing loading indicator")
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(40.dp),
-                                    strokeWidth = 3.dp
-                                )
-                                Text(
-                                    text = "Loading user...",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        } else if (userData != null) {
-                            val username = userData!!["username"] as? String ?: "Unknown User"
-                            val profileImageUrl = userData!!["profileImageUrl"] as? String
-
-                            Log.d(
-                                "LocationDetailPopup",
-                                "Displaying user: $username, image: $profileImageUrl"
+                                fontWeight = FontWeight.Bold
                             )
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Profile picture
-                                if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
-                                    Log.d("LocationDetailPopup", "Loading profile image from URL")
-                                    AsyncImage(
-                                        model = profileImageUrl,
-                                        contentDescription = "Profile picture of $username",
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .border(
-                                                2.dp,
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                                CircleShape
-                                            ),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Log.d("LocationDetailPopup", "Using default profile icon")
-                                    // Default profile icon
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.primaryContainer),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Person,
-                                            contentDescription = "Profile",
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-
-                                // Username
-                                Column {
+                            // Rating display
+                            if (averageRating > 0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
                                     Text(
-                                        text = "Added by",
-                                        fontSize = 12.sp,
+                                        text = String.format("%.1f", averageRating),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                    Icon(
+                                        imageVector = Icons.Default.Star,
+                                        contentDescription = "Rating",
+                                        tint = Color(0xFFFFC107),
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                     Text(
-                                        text = username,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        text = "($reviewCount)",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                        } else {
-                            Log.d(
-                                "LocationDetailPopup",
-                                "Not showing user section - no user data and not loading"
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Tab Row
+                    TabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ) {
+                        Tab(
+                            selected = selectedTabIndex == 0,
+                            onClick = { selectedTabIndex = 0 },
+                            text = { Text("Overview") }
+                        )
+                        Tab(
+                            selected = selectedTabIndex == 1,
+                            onClick = { selectedTabIndex = 1 },
+                            text = { Text("Reviews") }
+                        )
+                    }
+
+                    // Tab content
+                    when (selectedTabIndex) {
+                        0 -> OverviewTab(
+                            location = location,
+                            userData = userData,
+                            isLoadingUser = isLoadingUser
+                        )
+                        1 -> ReviewsTab(
+                            locationId = location["id"] as? String ?: ""
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OverviewTab(
+    location: Map<String, Any>,
+    userData: Map<String, Any>?,
+    isLoadingUser: Boolean
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Added by user section
+        if (isLoadingUser) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(40.dp),
+                    strokeWidth = 3.dp
+                )
+                Text(
+                    text = "Loading user...",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else if (userData != null) {
+            val username = userData["username"] as? String ?: "Unknown User"
+            val profileImageUrl = userData["profileImageUrl"] as? String
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Profile picture
+                if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = profileImageUrl,
+                        contentDescription = "Profile picture of $username",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .border(
+                                2.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                CircleShape
+                            ),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Default profile icon
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                // Username
+                Column {
+                    Text(
+                        text = "Added by",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = username,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+
+        if (userData != null || isLoadingUser) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+        }
+
+        // Description with read more
+        (location["description"] as? String)?.let { description ->
+            if (description.isNotEmpty()) {
+                var isExpanded by remember { mutableStateOf(false) }
+                val maxLines = if (isExpanded) Int.MAX_VALUE else 3
+
+                Column {
+                    Text(
+                        text = description,
+                        fontSize = 15.sp,
+                        lineHeight = 22.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = maxLines,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (description.length > 150 || description.count { it == '\n' } > 2) {
+                        TextButton(
+                            onClick = { isExpanded = !isExpanded },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text(
+                                text = if (isExpanded) "Read less" else "Read more",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
                             )
-                        }
-
-                        if (userData != null || isLoadingUser) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                            )
-                        }
-
-                        // Description with read more
-                        (location["description"] as? String)?.let { description ->
-                            if (description.isNotEmpty()) {
-                                var isExpanded by remember { mutableStateOf(false) }
-                                val maxLines = if (isExpanded) Int.MAX_VALUE else 3
-
-                                Column {
-                                    Text(
-                                        text = description,
-                                        fontSize = 15.sp,
-                                        lineHeight = 22.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        maxLines = maxLines,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    if (description.length > 150 || description.count { it == '\n' } > 2) {
-                                        TextButton(
-                                            onClick = { isExpanded = !isExpanded },
-                                            contentPadding = PaddingValues(0.dp)
-                                        ) {
-                                            Text(
-                                                text = if (isExpanded) "Read less" else "Read more",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Address
-                        (location["address"] as? String)?.let { address ->
-                            if (address.isNotEmpty()) {
-                                InfoRowWithIcon(
-                                    icon = Icons.Default.LocationOn,
-                                    text = address
-                                )
-                            }
-                        }
-                        (location["id"] as? String)?.let { id ->
-                            LocationReview(locationId = id)
                         }
                     }
                 }
             }
         }
+
+        // Address
+        (location["address"] as? String)?.let { address ->
+            if (address.isNotEmpty()) {
+                InfoRowWithIcon(
+                    icon = Icons.Default.LocationOn,
+                    text = address
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ReviewsTab(locationId: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp)
+    ) {
+        LocationReview(locationId = locationId)
     }
 }
 
@@ -365,7 +459,7 @@ fun InfoRowWithIcon(
     }
 }
 
-    fun getCategoryIcon(category: String?): ImageVector {
+fun getCategoryIcon(category: String?): ImageVector {
     return when (category?.lowercase()) {
         "restaurant", "food" -> Icons.Default.Restaurant
         "cafe", "coffee", "cafe/bar" -> Icons.Default.Info
