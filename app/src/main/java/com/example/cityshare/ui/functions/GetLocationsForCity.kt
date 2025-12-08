@@ -22,7 +22,10 @@ fun getLocationsForCity(
             cityDoc.collection("locations")
                 .get()
                 .addOnSuccessListener { locSnap ->
-                    val locations = locSnap.map { it.data }
+                    val locations = locSnap.map { doc ->
+                        val data = doc.data ?: emptyMap<String, Any>()
+                        data+mapOf("id" to doc.id)
+                    }
                     onResult(locations)
                 }
                 .addOnFailureListener {

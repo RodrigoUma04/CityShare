@@ -26,9 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import com.example.cityshare.ui.functions.getUserData
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -40,8 +38,6 @@ fun LocationDetailPopup(
 ) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
     var isLoadingUser by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val firestore = FirebaseFirestore.getInstance()
 
     // Fetch user data when dialog opens
     LaunchedEffect(showDialog, location) {
@@ -49,23 +45,8 @@ fun LocationDetailPopup(
             val addedBy = location["addedBy"] as? String
             if (addedBy != null && userData == null) {
                 isLoadingUser = true
-                scope.launch {
-                    try {
-                        val userDoc = firestore.collection("users")
-                            .document(addedBy)
-                            .get()
-                            .await()
-
-                        if (userDoc.exists()) {
-                            userData = userDoc.data
-                        }
-                    } catch (e: Exception) {
-                        // Handle error silently
-                        e.printStackTrace()
-                    } finally {
-                        isLoadingUser = false
-                    }
-                }
+                userData = getUserData(addedBy)
+                isLoadingUser = false
             }
         } else {
             // Reset user data when dialog closes
@@ -102,7 +83,9 @@ fun LocationDetailPopup(
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         val imageUrls = location["imageUrls"] as? List<*>
-                        val images = imageUrls?.mapNotNull { it as? String }?.filter { it.isNotEmpty() } ?: emptyList()
+                        val images =
+                            imageUrls?.mapNotNull { it as? String }?.filter { it.isNotEmpty() }
+                                ?: emptyList()
 
                         if (images.isNotEmpty()) {
                             val pagerState = rememberPagerState(pageCount = { images.size })
@@ -195,7 +178,10 @@ fun LocationDetailPopup(
                         }
 
                         // Added by user section
-                        Log.d("LocationDetailPopup", "Rendering UI - isLoadingUser: $isLoadingUser, userData: ${userData != null}")
+                        Log.d(
+                            "LocationDetailPopup",
+                            "Rendering UI - isLoadingUser: $isLoadingUser, userData: ${userData != null}"
+                        )
 
                         if (isLoadingUser) {
                             Log.d("LocationDetailPopup", "Showing loading indicator")
@@ -218,7 +204,10 @@ fun LocationDetailPopup(
                             val username = userData!!["username"] as? String ?: "Unknown User"
                             val profileImageUrl = userData!!["profileImageUrl"] as? String
 
-                            Log.d("LocationDetailPopup", "Displaying user: $username, image: $profileImageUrl")
+                            Log.d(
+                                "LocationDetailPopup",
+                                "Displaying user: $username, image: $profileImageUrl"
+                            )
 
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -234,7 +223,11 @@ fun LocationDetailPopup(
                                         modifier = Modifier
                                             .size(40.dp)
                                             .clip(CircleShape)
-                                            .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
+                                            .border(
+                                                2.dp,
+                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                                CircleShape
+                                            ),
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
@@ -272,7 +265,10 @@ fun LocationDetailPopup(
                                 }
                             }
                         } else {
-                            Log.d("LocationDetailPopup", "Not showing user section - no user data and not loading")
+                            Log.d(
+                                "LocationDetailPopup",
+                                "Not showing user section - no user data and not loading"
+                            )
                         }
 
                         if (userData != null || isLoadingUser) {
@@ -322,6 +318,9 @@ fun LocationDetailPopup(
                                 )
                             }
                         }
+                        (location["id"] as? String)?.let { id ->
+                            LocationReview(locationId = id)
+                        }
                     }
                 }
             }
@@ -330,7 +329,7 @@ fun LocationDetailPopup(
 }
 
 @Composable
-private fun InfoRowWithIcon(
+fun InfoRowWithIcon(
     icon: ImageVector,
     text: String,
     label: String? = null,
@@ -366,7 +365,7 @@ private fun InfoRowWithIcon(
     }
 }
 
-private fun getCategoryIcon(category: String?): ImageVector {
+    fun getCategoryIcon(category: String?): ImageVector {
     return when (category?.lowercase()) {
         "restaurant", "food" -> Icons.Default.Restaurant
         "cafe", "coffee", "cafe/bar" -> Icons.Default.Info
