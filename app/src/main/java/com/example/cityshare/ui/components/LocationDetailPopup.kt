@@ -1,7 +1,9 @@
 package com.example.cityshare.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -24,6 +26,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -33,6 +38,41 @@ fun LocationDetailPopup(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
+    var isLoadingUser by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val firestore = FirebaseFirestore.getInstance()
+
+    // Fetch user data when dialog opens
+    LaunchedEffect(showDialog, location) {
+        if (showDialog && location != null) {
+            val addedBy = location["addedBy"] as? String
+            if (addedBy != null && userData == null) {
+                isLoadingUser = true
+                scope.launch {
+                    try {
+                        val userDoc = firestore.collection("users")
+                            .document(addedBy)
+                            .get()
+                            .await()
+
+                        if (userDoc.exists()) {
+                            userData = userDoc.data
+                        }
+                    } catch (e: Exception) {
+                        // Handle error silently
+                        e.printStackTrace()
+                    } finally {
+                        isLoadingUser = false
+                    }
+                }
+            }
+        } else {
+            // Reset user data when dialog closes
+            userData = null
+        }
+    }
+
     if (showDialog && location != null) {
         Dialog(
             onDismissRequest = onDismiss,
@@ -142,7 +182,7 @@ fun LocationDetailPopup(
                             Icon(
                                 imageVector = categoryIcon,
                                 contentDescription = "Category",
-                                tint = getCategoryColor(location["category"]as String),
+                                tint = getCategoryColor(location["category"] as? String ?: ""),
                                 modifier = Modifier.size(28.dp)
                             )
 
@@ -151,6 +191,93 @@ fun LocationDetailPopup(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        // Added by user section
+                        Log.d("LocationDetailPopup", "Rendering UI - isLoadingUser: $isLoadingUser, userData: ${userData != null}")
+
+                        if (isLoadingUser) {
+                            Log.d("LocationDetailPopup", "Showing loading indicator")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(40.dp),
+                                    strokeWidth = 3.dp
+                                )
+                                Text(
+                                    text = "Loading user...",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else if (userData != null) {
+                            val username = userData!!["username"] as? String ?: "Unknown User"
+                            val profileImageUrl = userData!!["profileImageUrl"] as? String
+
+                            Log.d("LocationDetailPopup", "Displaying user: $username, image: $profileImageUrl")
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Profile picture
+                                if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
+                                    Log.d("LocationDetailPopup", "Loading profile image from URL")
+                                    AsyncImage(
+                                        model = profileImageUrl,
+                                        contentDescription = "Profile picture of $username",
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Log.d("LocationDetailPopup", "Using default profile icon")
+                                    // Default profile icon
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Profile",
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+
+                                // Username
+                                Column {
+                                    Text(
+                                        text = "Added by",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        text = username,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        } else {
+                            Log.d("LocationDetailPopup", "Not showing user section - no user data and not loading")
+                        }
+
+                        if (userData != null || isLoadingUser) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                             )
                         }
 

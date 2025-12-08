@@ -141,7 +141,6 @@ fun Homescreen(
             onCategorySelected = { category ->
                 cityState.selectedCategory = category
                 Log.d("Homescreen", "Category selected: $category")
-                // TODO: Filter locationsInCity based on selectedCategory
             }
         )
 
