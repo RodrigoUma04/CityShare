@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat
 import com.example.cityshare.R
 import com.example.cityshare.ui.components.CitySelectionPopup
 import com.example.cityshare.ui.components.LocationCard
+import com.example.cityshare.ui.components.LocationDetailPopup
 import com.example.cityshare.ui.components.MapCategoryChips
 import com.example.cityshare.ui.components.MapCitySelector
 import com.example.cityshare.ui.functions.addCityToCollection
@@ -52,13 +53,13 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 @Composable
 fun MapScreen(
-    onBackClicked: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
     val cityState = rememberCityState(context, db)
 
+    var showLocationPopup by remember { mutableStateOf(false) }
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -246,7 +247,8 @@ fun MapScreen(
                     LocationCard(
                         location = loc,
                         onClick = {
-                            // TODO: navigate to full screen details
+                                selectedLocation = loc
+                                showLocationPopup = true
                         }
                     )
                 }
@@ -280,5 +282,10 @@ fun MapScreen(
                 onDismiss = { cityState.showCityPopup = false }
             )
         }
+        LocationDetailPopup(
+            location = selectedLocation,
+            showDialog = showLocationPopup,
+            onDismiss = { showLocationPopup = false }
+        )
     }
 }

@@ -54,15 +54,11 @@ fun MainScreen(){
             ) {
                 composable("home") {
                     Homescreen(
-                        onMapClicked = { navController.navigate("map") },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
                 composable("map") {
                     MapScreen(
-                        onBackClicked = {
-                            navController.popBackStack()
-                        },
                         modifier = Modifier
                             .fillMaxSize()
                     )

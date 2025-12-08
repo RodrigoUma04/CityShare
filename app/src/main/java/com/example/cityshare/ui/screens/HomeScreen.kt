@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cityshare.ui.components.CategorySelector
 import com.example.cityshare.ui.components.CitySelectionPopup
+import com.example.cityshare.ui.components.LocationDetailPopup
 import com.example.cityshare.ui.components.LocationsList
 import com.example.cityshare.ui.functions.addCityToCollection
 import com.example.cityshare.ui.state.rememberCityState
@@ -39,12 +40,14 @@ import com.google.firebase.firestore.FirebaseFirestore
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Homescreen(
-    onMapClicked: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val db = FirebaseFirestore.getInstance()
     val context = LocalContext.current
     val cityState = rememberCityState(context, db)
+    var selectedLocation by remember { mutableStateOf<Map<String, Any>?>(null) }
+    var showLocationPopup by remember { mutableStateOf(false) }
+
 
     Column(
         modifier = modifier
@@ -131,8 +134,8 @@ fun Homescreen(
             locations = cityState.locationsInCity,
             selectedCategory = cityState.selectedCategory,
             onLocationClick = { location ->
-                Log.d("Homescreen", "Location clicked: ${location["name"]}")
-                // TODO: Navigate to location details screen
+                selectedLocation = location
+                showLocationPopup = true
             },
             modifier = Modifier.fillMaxWidth()
         )
@@ -159,6 +162,12 @@ fun Homescreen(
                 cityState.showCityPopup = false
             },
             onDismiss = { cityState.showCityPopup = false }
+        )
+
+        LocationDetailPopup(
+            location = selectedLocation,
+            showDialog = showLocationPopup,
+            onDismiss = { showLocationPopup = false }
         )
     }
 }
