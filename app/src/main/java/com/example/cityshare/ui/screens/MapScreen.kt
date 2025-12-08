@@ -93,6 +93,27 @@ fun MapScreen(
 
     val filteredLocations = cityState.getFilteredLocations()
 
+    var userLocation by remember { mutableStateOf<android.location.Location?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+            val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+            if (isGpsEnabled || isNetworkEnabled) {
+                val location = if (isGpsEnabled) {
+                    locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                } else {
+                    locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                }
+                userLocation = location
+            }
+        } catch (e: SecurityException) {
+            Log.e("Homescreen", "Location permission error", e)
+        }
+    }
+
     DisposableEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
         onDispose {
@@ -246,6 +267,7 @@ fun MapScreen(
                 ) {
                     LocationCard(
                         location = loc,
+                        userLocation = userLocation,
                         onClick = {
                                 selectedLocation = loc
                                 showLocationPopup = true

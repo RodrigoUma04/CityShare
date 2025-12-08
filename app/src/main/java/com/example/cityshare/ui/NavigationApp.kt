@@ -92,6 +92,11 @@ fun NavigationApp(
 
             composable(route = NavigationScreen.Main.name) {
                 MainScreen(
+                    onLogout = {
+                        navController.navigate(NavigationScreen.Login.name) {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
                 )
             }
         }
