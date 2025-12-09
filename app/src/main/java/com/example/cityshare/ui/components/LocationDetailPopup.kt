@@ -243,7 +243,7 @@ fun LocationDetailPopup(
                         selectedTabIndex = selectedTabIndex,
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.primary
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     ) {
                         Tab(
                             selected = selectedTabIndex == 0,

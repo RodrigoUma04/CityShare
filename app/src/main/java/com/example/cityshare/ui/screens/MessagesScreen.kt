@@ -38,9 +38,16 @@ fun MessagesScreen(
 
     var conversations by remember { mutableStateOf<List<ConversationData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var refreshTrigger by remember { mutableStateOf(0) }
+
+    // Function to manually refresh conversations
+    fun refreshConversations() {
+        isLoading = true
+        refreshTrigger++
+    }
 
     // Listen to conversations in real-time
-    LaunchedEffect(currentUserId) {
+    LaunchedEffect(currentUserId, refreshTrigger) {
         val listener = firestore.collection("chats")
             .whereArrayContains("participants", currentUserId)
             .orderBy("lastMessageTime", Query.Direction.DESCENDING)
@@ -75,6 +82,12 @@ fun MessagesScreen(
                     isLoading = false
                 }
             }
+    }
+
+    // Refresh when screen comes into focus
+    DisposableEffect(Unit) {
+        refreshConversations()
+        onDispose { }
     }
 
     Scaffold(
