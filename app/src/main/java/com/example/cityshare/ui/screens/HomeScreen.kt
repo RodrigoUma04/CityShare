@@ -11,14 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -107,28 +101,6 @@ fun Homescreen(
 
         Spacer(Modifier.height(30.dp))
 
-        var searchText by remember { mutableStateOf("") }
-
-        OutlinedTextField(
-            value = searchText,
-            onValueChange = { searchText = it },
-            placeholder = { Text("Search by name", color = Color.LightGray) },
-            trailingIcon = {
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.LightGray)
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.LightGray.copy(alpha = 0.3f),
-                unfocusedContainerColor = Color.LightGray.copy(alpha = 0.3f),
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            singleLine = true
-        )
-
-        Spacer(Modifier.height(30.dp))
-
         Text(
             text = "Categories",
             fontSize = 20.sp,
@@ -165,7 +137,6 @@ fun Homescreen(
             },
             modifier = Modifier.fillMaxWidth()
         )
-
         CitySelectionPopup(
             currentCity = cityState.currentCity ?: "Unknown",
             cities = cityState.allCities,
