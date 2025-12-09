@@ -13,7 +13,7 @@
 ## Nice to haves:
 - [x] When clicking on a location (in the list or on the map), the distance from your current location is calculated
 - [ ] All location data is loaded from Firebase on startup and locally cached in a Room database. A refresh button is also available.
-- [ ] You can send messages to other users #EXTRA
+- [x] You can send messages to other users #EXTRA
 
 ## Points distribution:
 * Authentication, Firebase – 3 points
