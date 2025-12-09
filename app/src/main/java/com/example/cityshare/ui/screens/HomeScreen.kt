@@ -43,6 +43,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Homescreen(
+    onNavigateToChat: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val db = FirebaseFirestore.getInstance()
@@ -192,7 +193,11 @@ fun Homescreen(
         LocationDetailPopup(
             location = selectedLocation,
             showDialog = showLocationPopup,
-            onDismiss = { showLocationPopup = false }
+            onDismiss = { showLocationPopup = false },
+            onChatWithUser = {userId ->
+                showLocationPopup = false
+                onNavigateToChat(userId)
+            }
         )
     }
 }

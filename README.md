@@ -7,7 +7,6 @@
 - [x] App data is centralized using Firebase
 - [x] You can add an unlimited number of cities
 - [x] When you are at a specific location, you can save that location with a photo and a category
-- [ ] Users can rate and comment on these locations #TODO
 - [x] You can filter by location categories
 - [x] After filtering, a list and a map (use OSM!!) are displayed
 

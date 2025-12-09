@@ -1,8 +1,10 @@
 package com.example.cityshare.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -38,6 +40,7 @@ fun LocationDetailPopup(
     location: Map<String, Any>?,
     showDialog: Boolean,
     onDismiss: () -> Unit,
+    onChatWithUser: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var userData by remember { mutableStateOf<Map<String, Any>?>(null) }
@@ -240,7 +243,7 @@ fun LocationDetailPopup(
                         selectedTabIndex = selectedTabIndex,
                         modifier = Modifier.fillMaxWidth(),
                         containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.onSurface
+                        contentColor = MaterialTheme.colorScheme.primary
                     ) {
                         Tab(
                             selected = selectedTabIndex == 0,
@@ -259,7 +262,8 @@ fun LocationDetailPopup(
                         0 -> OverviewTab(
                             location = location,
                             userData = userData,
-                            isLoadingUser = isLoadingUser
+                            isLoadingUser = isLoadingUser,
+                            onChatWithUser = onChatWithUser
                         )
                         1 -> ReviewsTab(
                             locationId = location["id"] as? String ?: ""
@@ -275,7 +279,8 @@ fun LocationDetailPopup(
 fun OverviewTab(
     location: Map<String, Any>,
     userData: Map<String, Any>?,
-    isLoadingUser: Boolean
+    isLoadingUser: Boolean,
+    onChatWithUser: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -304,58 +309,80 @@ fun OverviewTab(
         } else if (userData != null) {
             val username = userData["username"] as? String ?: "Unknown User"
             val profileImageUrl = userData["profileImageUrl"] as? String
+            val userId = location["addedBy"] as? String
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = userId != null) {
+                        userId?.let { onChatWithUser(it) }
+                    },
+                color = MaterialTheme.colorScheme.surface
             ) {
-                // Profile picture
-                if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = profileImageUrl,
-                        contentDescription = "Profile picture of $username",
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .border(
-                                2.dp,
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                CircleShape
-                            ),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    // Default profile icon
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "Profile",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(24.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Profile picture
+                    if (profileImageUrl != null && profileImageUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = profileImageUrl,
+                            contentDescription = "Profile picture of $username",
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .border(
+                                    2.dp,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                    CircleShape
+                                ),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Default profile icon
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = "Profile",
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // Username
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Added by",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = username,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-                }
 
-                // Username
-                Column {
-                    Text(
-                        text = "Added by",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = username,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    // Chat indicator
+                    if (userId != null) {
+                        Text(
+                            text = "Chat",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }

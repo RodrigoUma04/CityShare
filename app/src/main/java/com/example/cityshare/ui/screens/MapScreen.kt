@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +42,10 @@ import com.example.cityshare.ui.components.LocationDetailPopup
 import com.example.cityshare.ui.components.MapCategoryChips
 import com.example.cityshare.ui.components.MapCitySelector
 import com.example.cityshare.ui.functions.addCityToCollection
+import com.example.cityshare.ui.functions.geocodeCity
 import com.example.cityshare.ui.state.rememberCityState
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -51,13 +54,16 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
+
 @Composable
 fun MapScreen(
+    onNavigateToChat: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
     val cityState = rememberCityState(context, db)
+    val scope = rememberCoroutineScope()
 
     var showLocationPopup by remember { mutableStateOf(false) }
     var hasLocationPermission by remember {
@@ -114,6 +120,28 @@ fun MapScreen(
         }
     }
 
+    // Geocode city name and move map when city changes
+    LaunchedEffect(cityState.selectedCity) {
+        scope.launch {
+            try {
+                val cityName = cityState.selectedCity
+                if (cityName.isNotEmpty()) {
+                    // Disable follow location when user manually changes city
+                    locationOverlay?.disableFollowLocation()
+
+                    val coordinates = geocodeCity(cityName)
+                    coordinates?.let { (lat, lon) ->
+                        mapView?.controller?.animateTo(GeoPoint(lat, lon))
+                        mapView?.controller?.setZoom(13.0)
+                        Log.d("MapScreen", "Moved to $cityName: $lat, $lon")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MapScreen", "Error geocoding city", e)
+            }
+        }
+    }
+
     DisposableEffect(Unit) {
         Configuration.getInstance().userAgentValue = context.packageName
         onDispose {
@@ -152,7 +180,7 @@ fun MapScreen(
                                     val userLocation = GeoPoint(it.latitude, it.longitude)
                                     controller.setCenter(userLocation)
                                     controller.setZoom(15.0)
-                                    myLocationOverlay.enableFollowLocation()
+                                    // Don't enable follow location by default
                                 }
 
                                 if (location == null) {
@@ -227,6 +255,8 @@ fun MapScreen(
                 onClick = {
                     locationOverlay?.let { overlay ->
                         overlay.myLocation?.let { location ->
+                            // Re-enable follow location when user clicks the button
+                            overlay.enableFollowLocation()
                             mapView?.controller?.animateTo(location)
 
                             cityState.currentCity?.let { currentCity ->
@@ -269,8 +299,8 @@ fun MapScreen(
                         location = loc,
                         userLocation = userLocation,
                         onClick = {
-                                selectedLocation = loc
-                                showLocationPopup = true
+                            selectedLocation = loc
+                            showLocationPopup = true
                         }
                     )
                 }
@@ -307,7 +337,11 @@ fun MapScreen(
         LocationDetailPopup(
             location = selectedLocation,
             showDialog = showLocationPopup,
-            onDismiss = { showLocationPopup = false }
+            onDismiss = { showLocationPopup = false },
+            onChatWithUser = {userId ->
+                showLocationPopup = false
+                onNavigateToChat(userId)
+            }
         )
     }
 }
